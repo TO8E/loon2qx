@@ -4,10 +4,11 @@ import argparse, hashlib, json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import convert_lpx_to_qx as C
+import shared_scope as S
 
 ROOT = Path(C.ROOT)
 RAW = 'https://raw.githubusercontent.com/TO8E/loon2qx/main'
-BASE = [('HTTPDNS拦截器','Block_HTTPDNS.lpx','httpdns'),('广告平台拦截器','BlockAdvertisers.lpx','advertisers')]
+BASE = [('已选应用HTTPDNS补充','Block_HTTPDNS.lpx','httpdns'),('已选应用广告域名补充','BlockAdvertisers.lpx','advertisers')]
 SLUGS = {'QQMusic_remove_ads.lpx':'qqmusic','JD_remove_ads.lpx':'jd','XiaChuFang_remove_ads.lpx':'xiachufang',
          'Taobao_remove_ads.lpx':'taobao','FleaMarket_remove_ads.lpx':'goofish','RedPaper_remove_ads.lpx':'xhs',
          '12306_remove_ads.lpx':'12306','CoolApk_remove_ads.lpx':'coolapk','Amap_remove_ads.lpx':'amap',
@@ -25,10 +26,17 @@ def remove_retired(out):
     if directory.exists() and not any(directory.iterdir()):directory.rmdir()
 
 def emit(out,name,filename,slug,kind,raw,assets):
-    result=C.convert(name,filename)
+    scope=None
+    if filename in S.PROFILES:
+        source,scope=S.select_shared(filename,Path(C.SRC,filename).read_text(encoding='utf-8'))
+        result=C.convert(name,filename,text=source)
+    else:
+        result=C.convert(name,filename)
     hosts=C.complete_hosts(result['rewrites'],result['hosts'])
     added=[h for h in hosts if h not in result['hosts']]
     notes=list(result['notes'])
+    if scope:
+        notes.append('仅保留本次迁移所选服务；范围及逐条来源见 config/shared-scope.json，不是原公共插件全量。')
     if added:notes.append('补齐 HTTPS 匹配主机：'+', '.join(added))
     body=[]
     for rx,stage,(action,arg),note in result['rewrites']:
@@ -57,9 +65,12 @@ def emit(out,name,filename,slug,kind,raw,assets):
     listpath=None
     if result['filters']:
         listpath=f'{"base" if kind=="base" else "lists"}/{slug}.list'
-        write(out/listpath,f'# {name}：原 Loon [Rule] 分流\n'+'\n'.join(result['filters'])+'\n')
+        header=f'# {name}：原 Loon [Rule] 分流\n'
+        if scope:header+='# 仅保留所选服务；逐条来源见 config/shared-scope.json。\n'
+        write(out/listpath,header+'\n'.join(result['filters'])+'\n')
     row=dict(name=name,fname=filename,slug=slug,kind=kind,rewrite=len(body),filter=len(result['filters']),
              hosts=hosts,notes=notes,has_list=bool(listpath),snippet=snippet,list=listpath)
+    if scope:row['scope']=scope
     return row,body,result['filters'],result['tasks']
 
 def build(out,raw=RAW):
@@ -88,9 +99,10 @@ def build(out,raw=RAW):
     write(out/'config/rewrite_remote.conf','\n'.join(rewrite_remote)+'\n')
     write(out/'config/filter_remote.conf','\n'.join(filter_remote)+'\n')
     write(out/'config/mitm.txt','hostname = '+', '.join(hosts)+'\n')
+    write(out/'config/shared-scope.json',json.dumps({r['slug']:r['scope'] for r in rows if 'scope' in r},ensure_ascii=False,indent=2)+'\n')
     info=dict(raw=raw,rows=rows,hosts=hosts,assets=assets,deduped={},limitations=[
         '小红书 QUIC 处理由主配置承担；udp_drop_list = 443, STUN 可阻止常用 UDP 443 上的 QUIC，作用范围为全局，不保证覆盖其它端口。',
-        'HTTPDNS 的 URL+UA 例外保留不拦截效果，路由由主配置决定。',
+        '公共规则按所选服务收窄；共享端点仍可能被其它 App 使用，不能视作按进程隔离。',
         '本地模拟和语法检查不能代替手机 QX 实测。'])
     write(out/'build-info.json',json.dumps(info,ensure_ascii=False,indent=2)+'\n')
     return info,rewrites,filters,tasks

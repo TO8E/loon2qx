@@ -2,61 +2,235 @@
   "raw": "https://raw.githubusercontent.com/TO8E/loon2qx/main",
   "rows": [
     {
-      "name": "HTTPDNS拦截器",
+      "name": "已选应用HTTPDNS补充",
       "fname": "Block_HTTPDNS.lpx",
       "slug": "httpdns",
       "kind": "base",
-      "rewrite": 24,
-      "filter": 141,
-      "hosts": [
-        "appconf.mail.163.com",
-        "msglb.91160.com",
-        "ucdc2-upaas.uc.cn",
-        "gw-cn.jiaoliuqu.com",
-        "cdn.wup.huya.com",
-        "gslbali.ximalaya.com",
-        "ucdc-upaas.uc.cn",
-        "ucdc0-upaas.uc.cn",
-        "ucdc1-upaas.uc.cn",
-        "ucdc3-upaas.uc.cn",
-        "ucdc4-upaas.uc.cn",
-        "ucdc5-upaas.uc.cn",
-        "ucdc6-upaas.uc.cn",
-        "ucdc7-upaas.uc.cn",
-        "ucdc8-upaas.uc.cn",
-        "ucdc9-upaas.uc.cn"
-      ],
+      "rewrite": 5,
+      "filter": 9,
+      "hosts": [],
       "notes": [
-        "USER-AGENT 规则 → QX user-agent filter（httpdns*）",
-        "USER-AGENT 规则 → QX user-agent filter（httpsdns*）",
-        "USER-AGENT 规则 → QX user-agent filter（Httpdns*）",
-        "USER-AGENT 规则 → QX user-agent filter（Httpsdns*）",
-        "URL+UA 放行只豁免指定 HTTPDNS 请求的重写拦截，不再把整个 App 设为直连；QX 不支持按 URL 指定 DIRECT，这些例外的线路继续遵循主配置分流。",
         "省略无法直接映射的 no-resolve；QX 的解析/匹配流程不保证与 Loon 相同。",
-        "补齐 HTTPS 匹配主机：cdn.wup.huya.com, gslbali.ximalaya.com, ucdc-upaas.uc.cn, ucdc0-upaas.uc.cn, ucdc1-upaas.uc.cn, ucdc3-upaas.uc.cn, ucdc4-upaas.uc.cn, ucdc5-upaas.uc.cn, ucdc6-upaas.uc.cn, ucdc7-upaas.uc.cn, ucdc8-upaas.uc.cn, ucdc9-upaas.uc.cn"
+        "仅保留本次迁移所选服务；范围及逐条来源见 config/shared-scope.json，不是原公共插件全量。"
       ],
       "has_list": true,
       "snippet": "base/httpdns.snippet",
-      "list": "base/httpdns.list"
+      "list": "base/httpdns.list",
+      "scope": {
+        "source": "https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx",
+        "selected_rules": 14,
+        "upstream_rule_count": 162,
+        "groups": [
+          {
+            "apps": [
+              "京东"
+            ],
+            "purpose": "京东解析服务",
+            "basis": "原公共插件中 dns.jd.com 及相邻的京东解析地址；不纳入归属不明确的其它 IP。",
+            "entries": [
+              {
+                "line": 146,
+                "rule": "DOMAIN, dns.jd.com, REJECT"
+              },
+              {
+                "line": 147,
+                "rule": "IP-CIDR, 101.124.19.122/32, REJECT, no-resolve"
+              },
+              {
+                "line": 148,
+                "rule": "IP-CIDR6, 2402:db40:5100:1011::5/128, REJECT, no-resolve"
+              }
+            ]
+          },
+          {
+            "apps": [
+              "淘宝",
+              "闲鱼",
+              "高德"
+            ],
+            "purpose": "阿里系共享解析服务及淘宝调度接口",
+            "basis": "按阿里系服务保留；公共解析端点也可能被其它 App 使用，不是按进程隔离。",
+            "entries": [
+              {
+                "line": 98,
+                "rule": "DOMAIN, httpdns.alicdn.com, REJECT"
+              },
+              {
+                "line": 100,
+                "rule": "DOMAIN, httpdns-api.aliyuncs.com, REJECT"
+              },
+              {
+                "line": 101,
+                "rule": "DOMAIN, httpdns-sc.aliyuncs.com, REJECT"
+              },
+              {
+                "line": 108,
+                "rule": "DOMAIN, httpdns.danuoyi.tbcache.com, REJECT"
+              },
+              {
+                "line": 102,
+                "rule": "IP-CIDR, 203.107.1.0/24, REJECT, no-resolve"
+              },
+              {
+                "line": 110,
+                "rule": "URL-REGEX, \"^http:\\/\\/amdc\\.m\\.taobao\\.com\\/amdc\\/mobileDispatch\", REJECT"
+              },
+              {
+                "line": 111,
+                "rule": "URL-REGEX, \"^http:\\/\\/47\\.246\\.103\\.9\\/amdc\\/mobileDispatch\", REJECT"
+              },
+              {
+                "line": 112,
+                "rule": "URL-REGEX, \"^http:\\/\\/47\\.246\\.103\\.10\\/amdc\\/mobileDispatch\", REJECT"
+              },
+              {
+                "line": 113,
+                "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.10\\/amdc\\/mobileDispatch\", REJECT"
+              },
+              {
+                "line": 114,
+                "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.219\\/amdc\\/mobileDispatch\", REJECT"
+              }
+            ]
+          },
+          {
+            "apps": [
+              "哔哩哔哩"
+            ],
+            "purpose": "B 站解析服务",
+            "basis": "用户已有 B 站增强；仅保留明确的 bilivideo HTTPDNS 域名，不替换其重写。",
+            "entries": [
+              {
+                "line": 93,
+                "rule": "DOMAIN, httpdns.bilivideo.com, REJECT"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
-      "name": "广告平台拦截器",
+      "name": "已选应用广告域名补充",
       "fname": "BlockAdvertisers.lpx",
       "slug": "advertisers",
       "kind": "base",
-      "rewrite": 4,
-      "filter": 337,
-      "hosts": [
-        "video-dsp.pddpic.com",
-        "t-dsp.pinduoduo.com",
-        "images.pinduoduo.com"
-      ],
+      "rewrite": 0,
+      "filter": 18,
+      "hosts": [],
       "notes": [
-        "省略无法直接映射的 no-resolve；QX 的解析/匹配流程不保证与 Loon 相同。"
+        "仅保留本次迁移所选服务；范围及逐条来源见 config/shared-scope.json，不是原公共插件全量。"
       ],
       "has_list": true,
-      "snippet": "base/advertisers.snippet",
-      "list": "base/advertisers.list"
+      "snippet": null,
+      "list": "base/advertisers.list",
+      "scope": {
+        "source": "https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx",
+        "selected_rules": 18,
+        "upstream_rule_count": 346,
+        "groups": [
+          {
+            "apps": [
+              "QQ音乐"
+            ],
+            "purpose": "QQ 音乐广告与统计补充",
+            "basis": "只保留 y.qq.com 下的业务域名；tmead/tmeadbak 已在 QQ 音乐自身列表中。",
+            "entries": [
+              {
+                "line": 138,
+                "rule": "DOMAIN, tmeadcomm.y.qq.com, REJECT"
+              },
+              {
+                "line": 143,
+                "rule": "DOMAIN, stat.y.qq.com, REJECT"
+              },
+              {
+                "line": 144,
+                "rule": "DOMAIN, stat6.y.qq.com, REJECT"
+              }
+            ]
+          },
+          {
+            "apps": [
+              "京东"
+            ],
+            "purpose": "京东广告与统计补充",
+            "basis": "原公共插件中明确位于 jd.com 下的业务域名。",
+            "entries": [
+              {
+                "line": 267,
+                "rule": "DOMAIN, dsp-x.jd.com, REJECT"
+              },
+              {
+                "line": 268,
+                "rule": "DOMAIN, im-x.jd.com, REJECT"
+              },
+              {
+                "line": 269,
+                "rule": "DOMAIN, xlog.jd.com, REJECT"
+              },
+              {
+                "line": 270,
+                "rule": "DOMAIN, janapi.jd.com, REJECT"
+              }
+            ]
+          },
+          {
+            "apps": [
+              "淘宝",
+              "闲鱼",
+              "高德"
+            ],
+            "purpose": "阿里系广告、统计与百川服务补充",
+            "basis": "按阿里系共享服务保留；App 自身已有规则不重复搬入，未泛化为所有广告 SDK。",
+            "entries": [
+              {
+                "line": 223,
+                "rule": "DOMAIN, et.tanx.com, REJECT"
+              },
+              {
+                "line": 224,
+                "rule": "DOMAIN, df.tanx.com, REJECT"
+              },
+              {
+                "line": 225,
+                "rule": "DOMAIN, opehs.tanx.com, REJECT"
+              },
+              {
+                "line": 226,
+                "rule": "DOMAIN, beacon-api.aliyuncs.com, REJECT"
+              },
+              {
+                "line": 227,
+                "rule": "DOMAIN, adash.man.aliyuncs.com, REJECT"
+              },
+              {
+                "line": 230,
+                "rule": "DOMAIN, atoken.m.taobao.com, REJECT"
+              },
+              {
+                "line": 233,
+                "rule": "DOMAIN, baichuan-sdk.alicdn.com, REJECT"
+              },
+              {
+                "line": 234,
+                "rule": "DOMAIN, acs4baichuan.m.taobao.com, REJECT"
+              },
+              {
+                "line": 235,
+                "rule": "DOMAIN, nbsdk-baichuan.alicdn.com, REJECT"
+              },
+              {
+                "line": 246,
+                "rule": "DOMAIN, retcode.alicdn.com, REJECT"
+              },
+              {
+                "line": 247,
+                "rule": "DOMAIN, arms-retcode.aliyuncs.com, REJECT"
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "name": "QQ音乐去广告",
@@ -266,25 +440,6 @@
     }
   ],
   "hosts": [
-    "appconf.mail.163.com",
-    "msglb.91160.com",
-    "ucdc2-upaas.uc.cn",
-    "gw-cn.jiaoliuqu.com",
-    "cdn.wup.huya.com",
-    "gslbali.ximalaya.com",
-    "ucdc-upaas.uc.cn",
-    "ucdc0-upaas.uc.cn",
-    "ucdc1-upaas.uc.cn",
-    "ucdc3-upaas.uc.cn",
-    "ucdc4-upaas.uc.cn",
-    "ucdc5-upaas.uc.cn",
-    "ucdc6-upaas.uc.cn",
-    "ucdc7-upaas.uc.cn",
-    "ucdc8-upaas.uc.cn",
-    "ucdc9-upaas.uc.cn",
-    "video-dsp.pddpic.com",
-    "t-dsp.pinduoduo.com",
-    "images.pinduoduo.com",
     "api.m.jd.com",
     "api.xiachufang.com",
     "acs.m.taobao.com",
@@ -352,7 +507,7 @@
   "deduped": {},
   "limitations": [
     "小红书 QUIC 处理由主配置承担；udp_drop_list = 443, STUN 可阻止常用 UDP 443 上的 QUIC，作用范围为全局，不保证覆盖其它端口。",
-    "HTTPDNS 的 URL+UA 例外保留不拦截效果，路由由主配置决定。",
+    "公共规则按所选服务收窄；共享端点仍可能被其它 App 使用，不能视作按进程隔离。",
     "本地模拟和语法检查不能代替手机 QX 实测。"
   ]
 }

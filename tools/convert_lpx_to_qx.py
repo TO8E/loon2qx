@@ -322,8 +322,9 @@ def complete_hosts(rewrites, initial):
     return hosts
 
 
-def convert(show, fname):
-    text = read(os.path.join(SRC, fname))
+def convert(show, fname, text=None):
+    if text is None:
+        text = read(os.path.join(SRC, fname))
     sec = sections(text)
     filters, rewrites, tasks, hosts, notes = [], [], [], [], []
     jq_files = {}

@@ -12,6 +12,7 @@ REPO=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(REPO/'tools'))
 import convert_lpx_to_qx as C
 import build_qx_repo as B
+import shared_scope as S
 
 class ConversionTests(unittest.TestCase):
     def convert(self,text,filename='test.lpx'):
@@ -53,6 +54,7 @@ response if ${url} ~= /^https:\/\/a\.test\/data/i then response.json.replace("da
     def match_filters(self,lines,host):
         for line in lines:
             kind,value,policy=[x.strip() for x in line.split(',')]
+            if kind=='host' and host==value:return policy
             if kind=='host-suffix' and (host==value or host.endswith('.'+value)):return policy
             if kind=='host-keyword' and value in host:return policy
             if kind=='host-wildcard' and fnmatch.fnmatchcase(host,value):return policy
@@ -85,6 +87,45 @@ URL-REGEX, "^http:\/\/\d+\.\d+\.\d+\.\d+\/d\?", REJECT
         self.assertFalse(blocked('http://119.29.29.90/d?dn=example.com','Dida/1.0'))
         self.assertTrue(blocked('http://119.29.29.90/d?dn=example.com','Other/1.0'))
         self.assertTrue(blocked('http://1.2.3.4/d?dn=example.com','Dida/1.0'))
+
+    def test_scoped_httpdns_blocks_taobao_without_generic_app_exceptions(self):
+        rows=[line for line in (REPO/'base/httpdns.snippet').read_text().splitlines()
+              if line.strip() and not line.startswith('#')]
+        self.assertFalse(any('url-and-header' in row for row in rows))
+        patterns=[row.split(' url ',1)[0] for row in rows]
+        def blocked(url):return any(re.search(pattern,url) for pattern in patterns)
+        self.assertTrue(blocked('http://amdc.m.taobao.com/amdc/mobileDispatch'))
+        self.assertTrue(blocked('http://47.246.103.9/amdc/mobileDispatch?fixture=1'))
+        for url in ['http://119.29.29.90/d?dn=example.com',
+                    'http://1.2.3.4/d?dn=example.com',
+                    'http://amdc.m.taobao.com/normal',
+                    'https://ucdc2-upaas.uc.cn/api/v1/dns_query?fixture=1']:
+            self.assertFalse(blocked(url),url)
+
+    def test_scoped_lists_keep_selected_services_without_unrelated_rules(self):
+        def rules(name):return [line for line in (REPO/'base'/name).read_text().splitlines()
+                                if line.strip() and not line.startswith('#')]
+        httpdns=rules('httpdns.list');ads=rules('advertisers.list')
+        for host in ['dns.jd.com','httpdns.bilivideo.com','httpdns-api.aliyuncs.com']:
+            self.assertEqual(self.match_filters(httpdns,host),'reject')
+        for host in ['httpdns.baidu.com','dns.weixin.qq.com','unrelated.httpdns.example.test']:
+            self.assertIsNone(self.match_filters(httpdns,host))
+        for host in ['tmeadcomm.y.qq.com','dsp-x.jd.com','atoken.m.taobao.com']:
+            self.assertEqual(self.match_filters(ads,host),'reject')
+        self.assertIsNone(self.match_filters(ads,'www.jiguang.cn'))
+        self.assertFalse((REPO/'base/advertisers.snippet').exists())
+        self.assertNotIn('base/advertisers.snippet',(REPO/'config/rewrite_remote.conf').read_text())
+
+    def test_shared_selection_ignores_additions_but_fails_on_changed_selected_rule(self):
+        profile={'fixture.lpx':[dict(apps=['京东'],purpose='fixture',basis='fixture',
+                                    rules=[('DOMAIN','dns.jd.com')])]}
+        with patch.object(S,'PROFILES',profile):
+            source,report=S.select_shared('fixture.lpx','[Rule]\nDOMAIN, dns.jd.com, REJECT\nDOMAIN, unrelated.test, REJECT\n')
+            self.assertIn('dns.jd.com',source)
+            self.assertNotIn('unrelated.test',source)
+            self.assertEqual(report['selected_rules'],1)
+            with self.assertRaises(ValueError):S.select_shared('fixture.lpx','[Rule]\nDOMAIN, dns.jd.com, DIRECT\n')
+            with self.assertRaises(ValueError):S.select_shared('fixture.lpx','[Rule]\nDOMAIN, unrelated.test, REJECT\n')
 
     def test_google_preserves_query_and_rejects_suffix_trick(self):
         r=self.convert(r'''[Rewrite]

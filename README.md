@@ -1,28 +1,51 @@
 # loon2qx
 
-将 [可莉插件中心](https://hub.kelee.one/) 中选定的 12 个应用/工具插件和 2 个基础拦截器转换为 Quantumult X 配置。
+将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置，并提供 2 份按所选应用收窄的公共规则补充。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
-当前生成 139 条重写、496 条分流、50 个 MITM 主机和 5 个带 QX 兼容层的脚本。
+当前生成 116 条重写、45 条分流、31 个 MITM 主机和 5 个带 QX 兼容层的脚本。
 这些数字描述文件内容，**不代表已经在手机验证所有 App 的实际效果**。
 
 ## 导入
 
 - 将 `config/rewrite_remote.conf` 添加到主配置的 `[rewrite_remote]`。
-- 将 `config/filter_remote.conf` 添加到 `[filter_remote]`，保留各资源本来的策略。基础文件同时包含 DIRECT 和 REJECT，不能统一指定 `force-policy=reject`。
+- 将 `config/filter_remote.conf` 添加到 `[filter_remote]`，保留各资源本来的策略。12306 含广告域名 DIRECT 配套规则，不能给所有资源统一指定 `force-policy=reject`。
 - 远程重写使用裸规则及 `hostname = …`，不含配置段头。其主机由 QX 合并；`config/mitm.txt` 是供本地合并时使用的清单。
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
 - QQ 音乐只有域名分流，不生成或订阅空的重写文件。
 
-`base/` 的两个基础拦截器沿用原插件的公共拦截逻辑，导入片段默认启用。它们不是 JS 执行器的依赖。
-各 App 自己的原始域名规则保留完整，不再为了去重从独立列表中删除。
+`base/` 现在只包含所选应用的 HTTPDNS、广告域名补充，不再整包翻译两个公共插件。
+它们不是 JS 执行器的依赖；各 App 自己的域名规则仍完整保留在各自资源中。
+广告域名补充只有分流，故不再生成 `base/advertisers.snippet`；更新旧配置时删除这条空重写订阅。
+
+## 公共部分的范围
+
+按用户已有插件清单及服务归属选取，逐条来源和原文件行号记录在 `config/shared-scope.json`。
+
+| 关联应用 | 保留用途 | 原规则数 |
+|---|---|---:|
+| 京东 | 京东解析服务 | 3 |
+| 淘宝, 闲鱼, 高德 | 阿里系共享解析服务及淘宝调度接口 | 10 |
+| 哔哩哔哩 | B 站解析服务 | 1 |
+| QQ音乐 | QQ 音乐广告与统计补充 | 3 |
+| 京东 | 京东广告与统计补充 | 4 |
+| 淘宝, 闲鱼, 高德 | 阿里系广告、统计与百川服务补充 | 11 |
+
+不迁移嘀嗒出行的 URL + UA 直连例外，也不保留需要它兜底的全 IP 通用 HTTPDNS URL 拦截。
+同时移除未选应用的专用服务、全局 `httpdns` 关键词/UA 拦截，以及拼多多等未启用项目的公共重写。
+因此本配置不再存在“嘀嗒请求只放行但不强制直连”的转换差异。
+
+这里按服务筛选，不是按 App 进程隔离：阿里系等共享端点仍可能被其他 App 使用。
+域名归属和上游分组也不证明每个 App 当前都会访问全部端点；未确认的第三方 SDK 不因厂商相同就整包搬入。
+这是现有资料支持的迁移子集，未通过手机流量证明去广告覆盖完整；实际出现遗漏时再按具体请求补充。
+用户原有 AdGuard 等通用资源保持独立，不宣称这份定向补充替代它们。
 
 ## 资源
 
 | 应用/工具 | 主要文件 | 重写 | 分流 |
 |---|---|---:|---:|
-| HTTPDNS拦截器 | `base/httpdns.snippet` | 24 | 141 |
-| 广告平台拦截器 | `base/advertisers.snippet` | 4 | 337 |
+| 已选应用HTTPDNS补充 | `base/httpdns.snippet` | 5 | 9 |
+| 已选应用广告域名补充 | `base/advertisers.list` | 0 | 18 |
 | QQ音乐去广告 | `lists/qqmusic.list` | 0 | 11 |
 | 京东去广告 | `snippets/jd.snippet` | 4 | 0 |
 | 下厨房去广告 | `snippets/xiachufang.snippet` | 7 | 0 |
@@ -55,7 +78,7 @@
 ## 已知差异
 
 1. **小红书的 QUIC 处理由主配置承担。** 原规则的目的是阻止 QUIC，让支持回退的请求改走 TCP HTTPS，以配合重写。QX 主配置已有 `[general]` 下的 `udp_drop_list = 443, STUN` 时，常用 UDP 443 上的 QUIC 已被阻止，无需再添加同用途规则。这作用于所有经 QX 处理的 UDP 443 流量，范围比原域名条件更广，也不保证覆盖其它端口的 QUIC。QX 另支持在该列表中加入 `QUIC`，但它同样全局生效，本项目不自动添加。参见 [QX 官方参数说明](https://github.com/crossutility/Quantumult-X/blob/master/sample.conf)。
-2. **HTTPDNS 的 URL + User-Agent 例外**通过限定重写保留“不拦截”的效果；QX 无法用该条件直接指定路由，例外请求继续遵循主配置分流，不将整个 App 设成 DIRECT。
+2. **公共规则按服务选取，不按进程隔离。** 共享端点仍可能被其它 App 使用；未搬入与本次迁移无关的路由例外和通用拦截。
 3. `no-resolve`、部分超时参数没有直接映射，DNS/超时流程可能有差异。
 4. 高德的 jq 内联为较长的一行；对返回结构的假设沿用上游，App 更新后仍可能失效。
 5. 未进行手机 QX 原生导入、实际网络抓包或各 App 实测。正则/jq 编译和模拟请求只验证对应场景。
@@ -75,4 +98,5 @@ node tests/runtime.cjs
 
 在镜像工作区运行 `python3 scripts/convert_lpx_to_qx.py` 会使用同一个生成器重建 `qx/`；
 其中 `base/`、`snippets/`、`lists/`、`js/`、`jq/`、`config/` 与 GitHub 发布目录采用相同内容。
-`qx/conf/quantumultx.conf` 是本地个人配置，不上传到本仓库。
+`qx/conf/quantumultx.conf` 是本地个人配置，不上传到本仓库。公共规则选择清单在 `tools/shared_scope.py`，
+构建先筛选再转换；上游新增无关规则不会自动扩大范围，已选规则消失或策略变化则构建失败。
