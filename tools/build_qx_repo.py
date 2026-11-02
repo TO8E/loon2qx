@@ -89,7 +89,7 @@ def build(out,raw=RAW):
     write(out/'config/filter_remote.conf','\n'.join(filter_remote)+'\n')
     write(out/'config/mitm.txt','hostname = '+', '.join(hosts)+'\n')
     info=dict(raw=raw,rows=rows,hosts=hosts,assets=assets,deduped={},limitations=[
-        '未等价转换小红书按域名限定的 QUIC 拦截；未修改全局 UDP 设置。',
+        '小红书 QUIC 处理由主配置承担；udp_drop_list = 443, STUN 可阻止常用 UDP 443 上的 QUIC，作用范围为全局，不保证覆盖其它端口。',
         'HTTPDNS 的 URL+UA 例外保留不拦截效果，路由由主配置决定。',
         '本地模拟和语法检查不能代替手机 QX 实测。'])
     write(out/'build-info.json',json.dumps(info,ensure_ascii=False,indent=2)+'\n')

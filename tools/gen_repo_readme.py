@@ -48,7 +48,7 @@ text=f'''# loon2qx
 
 ## 已知差异
 
-1. **小红书按域名限定的 QUIC 拦截未等价转换。** 全局 `udp_drop_list=QUIC` 会影响所有应用，不能称作等价替代。本项目不修改主配置的全局 UDP 设置。
+1. **小红书的 QUIC 处理由主配置承担。** 原规则的目的是阻止 QUIC，让支持回退的请求改走 TCP HTTPS，以配合重写。QX 主配置已有 `[general]` 下的 `udp_drop_list = 443, STUN` 时，常用 UDP 443 上的 QUIC 已被阻止，无需再添加同用途规则。这作用于所有经 QX 处理的 UDP 443 流量，范围比原域名条件更广，也不保证覆盖其它端口的 QUIC。QX 另支持在该列表中加入 `QUIC`，但它同样全局生效，本项目不自动添加。参见 [QX 官方参数说明](https://github.com/crossutility/Quantumult-X/blob/master/sample.conf)。
 2. **HTTPDNS 的 URL + User-Agent 例外**通过限定重写保留“不拦截”的效果；QX 无法用该条件直接指定路由，例外请求继续遵循主配置分流，不将整个 App 设成 DIRECT。
 3. `no-resolve`、部分超时参数没有直接映射，DNS/超时流程可能有差异。
 4. 高德的 jq 内联为较长的一行；对返回结构的假设沿用上游，App 更新后仍可能失效。

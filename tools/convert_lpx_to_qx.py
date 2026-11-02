@@ -337,8 +337,9 @@ def convert(show, fname):
             a = parse_and(line)
             pol = map_policy(a["policy"])
             if a["protos"]:
-                notes.append("未转换按域名限定的 QUIC 条件：全局 udp_drop_list=QUIC 会扩大到所有应用，"
-                             "不是等价转换；本插件不修改 general，也不拒绝该域名的 TCP 流量。")
+                notes.append("QUIC 处理交由 QX 主配置：已有 udp_drop_list = 443, STUN 时，常用 UDP 443 上的 QUIC 已被阻止，"
+                             "支持回退的请求可改走 TCP 以配合重写。它作用于所有经 QX 处理的 UDP 443 流量，"
+                             "范围不同于原域名条件；不保证覆盖其它端口的 QUIC。本插件不修改 general。")
             elif a["sufs"] and a["kws"]:
                 filters.extend(and_domain_filters(a, pol))
             elif a["kws"]:
