@@ -63,13 +63,25 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
     supplement=supplement or {}
     result['rewrites']=supplement.get('rewrites',[])+result['rewrites']
     result['filters']=list(dict.fromkeys(supplement.get('filters',[])+result['filters']))
+    native=[]
+    native_file={'bilibili':'bilibili-enhance.snippet','xiaoheihe':'xiaoheihe.snippet'}.get(slug)
+    if native_file:
+        template=(Path(__file__).resolve().parent/native_file).read_text(encoding='utf-8')
+        for line in template.splitlines():
+            if line.startswith('hostname = '):result['hosts'] += [h.strip() for h in line.split('=',1)[1].split(',')]
+            elif line.strip() and not line.startswith('#'):
+                if ' url ' not in line:raise ValueError('Invalid native rewrite source: '+native_file)
+                native.append(line.replace('__RAW_BASE__',raw))
     hosts=C.complete_hosts(result['rewrites'],result['hosts'])
     added=[h for h in hosts if h not in result['hosts']]
     notes=list(dict.fromkeys(supplement.get('notes',[])+result['notes']))
     if supplement:
         notes.append('已并入本 App 的 HTTPDNS/广告域名配套；来源和分配见 config/shared-scope.json。')
     if slug=='bilibili':
-        notes.append('仅提供 B 站 HTTPDNS 分流配套，继续使用原有 B 站增强重写。')
+        notes.append('完整远程 B 站增强；启用后删除或停用旧的本地 B 站重写块，避免重复。')
+        notes.append('来源：https://raw.githubusercontent.com/kokoryh/Script/master/Surge/module/bilibili.sgmodule')
+    if slug=='xiaoheihe':
+        notes.append('来源：https://github.com/wxs0625/loon-plugins/blob/main/blockAds_all.plugin；仅迁移既有小黑盒规则。')
     if added:notes.append('补齐 HTTPS 匹配主机：'+', '.join(added))
     body=[]
     for rx,stage,(action,arg),note in result['rewrites']:
@@ -87,7 +99,7 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
                                   'sha256':hashlib.sha256(adapted.encode()).hexdigest(),'adapted':True}
                 arg=raw+'/'+relative
         body.append(C.fmt_rewrite([rx,stage,(action,arg),note])[0])
-    body=list(dict.fromkeys(body))
+    body=list(dict.fromkeys(body+native))
     snippet=f'{kind}/{slug}.snippet' if body else None
     if snippet:
         header=([f"hostname = {', '.join(hosts)}"] if hosts else [])
@@ -115,7 +127,8 @@ def build(out,raw=RAW):
     remove_retired(out)
     rows=[];assets={};rewrites=[];filters=[];tasks=[];hosts=[]
     per_app,scope=supplements()
-    selected=[(n,f,SLUGS[f],'snippets') for n,f,_ in C.ENABLED]+[('B站增强分流配套',None,'bilibili','snippets')]
+    selected=[(n,f,SLUGS[f],'snippets') for n,f,_ in C.ENABLED]+[
+        ('B站增强',None,'bilibili','snippets'),('小黑盒去广告',None,'xiaoheihe','snippets')]
     emitted={slug for _,_,slug,_ in selected}
     if set(per_app)-emitted:raise ValueError('Shared rules have unassigned app targets: '+str(set(per_app)-emitted))
     seen_rewrites=set();seen_filters=set()

@@ -1,0 +1,5 @@
+hostname = api.xiaoheihe.cn
+# 小黑盒：将原有两条本地重写移为远程资源，逻辑保持不变。
+# Source: https://github.com/wxs0625/loon-plugins/blob/main/blockAds_all.plugin
+^https:\/\/api\.xiaoheihe\.cn\/account\/get_ads_info_v2 url reject-dict
+^https:\/\/api\.xiaoheihe\.cn\/bbs\/app\/feeds\/news url jsonjq-response-body 'if (try (.result.links | type) catch null) == "array" then .result.links |= map(if type == "object" and .content_type == 27 then del(.title, .ad_pm, .img_gif, .idea_id, .ad_report, .label, .source, .intranet_only, .ad_cm, .content_type, .PROTOCOL, .img, .ad_ratio) else . end) else . end'

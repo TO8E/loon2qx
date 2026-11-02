@@ -12,7 +12,7 @@ scope_table='\n'.join('| '+', '.join(g['apps'])+' | '+g['purpose']+' | '+str(len
 text=f'''# loon2qx
 
 将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置。
-HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的分流配套，沿用原有 B 站增强重写。
+HTTPDNS、广告域名配套已并入各 App；B 站增强和小黑盒原本地重写也已移为远程资源。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
 独立 App 文件合计 {sum(r['rewrite'] for r in rows)} 条重写、{sum(r['filter'] for r in rows)} 条分流；去重后仍为 {info['unique']['rewrites']} 条重写、{info['unique']['filters']} 条分流。
@@ -27,7 +27,8 @@ HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
 - QQ 音乐只有域名分流，不生成或订阅空的重写文件。
 - 同一 App 的 `.snippet` 和 `.list` 配套启停；QX 原生订阅将重写与分流分开读取，不能把 IP/域名分流直接塞进重写文件。
-- B 站只新增 `lists/bilibili.list` 配套，继续启用原来的 B 站增强。
+- B 站使用 `snippets/bilibili.snippet` + `lists/bilibili.list`；小黑盒使用 `snippets/xiaoheihe.snippet`。
+- 从旧配置迁移时，删除 `[rewrite_local]` 中 `BEGIN BILIBILI_KOKORYH_QX` 到 `END BILIBILI_KOKORYH_QX` 的整块，以及两条小黑盒重写，再添加相应远程订阅。只需迁移一次，无须覆盖整份主配置。
 
 不再生成或订阅 `base/httpdns.*`、`base/advertisers.*`。更新旧配置时删除这些公共订阅，按下表补上相关 App 的分流。
 各 App 原有规则保持完整，公共补充直接写入它自己的文件。
@@ -63,7 +64,7 @@ HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的
 
 ## B 站增强底栏修正
 
-用户完整配置中的 kokoryh Bilibili 增强使用 `js/Bilibili/bilibili_json.js` 适配版。
+`snippets/bilibili.snippet` 提供完整 kokoryh Bilibili 增强重写，其中 JSON 处理使用 `js/Bilibili/bilibili_json.js` 适配版。
 原作者的底栏筛选只认“首页、动态、我的”，会丢弃名称改为“关注”或其它语言的入口。
 适配版同时识别入口 URI、tab_id、已知 id 和名称，保留原入口的路由、图标和顺序；
 遇到无法确认的底栏结构则保留原样。其它 JSON 处理逻辑沿用作者快照。
@@ -71,8 +72,15 @@ HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的
 
 原脚本快照保存在 `tools/upstream/bilibili_json.js`，修正逻辑在 `tools/bilibili-navigation.js`；
 构建只替换底栏筛选，更新上游后匹配不到原逻辑会停止构建，要求重新核对。
-现有 B 站增强中指向作者 `bilibili_json.js` 的 URL 可替换为本仓库同名脚本 Raw URL，
-其余 protobuf、皮肤脚本继续使用原来的来源。不要同时加载两条处理同一接口的重写。
+其余 protobuf、皮肤脚本继续使用原来的来源。不要同时加载旧本地 B 站规则和本远程订阅。
+
+## 后续如何更新
+
+插件内容更新后，不需要重新导入完整配置。QX 主界面长按右下角风车/圆形按钮，再点击左侧刷新按钮，更新外部资源。
+也可进入重写资源列表，选择对应资源进行更新；脚本使用缓存时同时更新它引用的脚本。
+完整步骤参考 [QX 订阅更新说明](https://t.me/s/QuanXNews?before=278&q=%23Tutorials) 和 [BoxJS 的 QX 脚本更新说明](https://docs.boxjs.app/base/upgrade)。
+配置中的远程资源设置为 86400 秒更新周期；不代表每次请求都会实时下载 JS。
+节点参数、策略组等写在主配置内的内容不属于这些远程资源，修改它们时仍需编辑对应配置段。
 
 ## 已处理的兼容问题
 

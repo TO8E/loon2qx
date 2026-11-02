@@ -267,19 +267,25 @@
       "list": null
     },
     {
-      "name": "B站增强分流配套",
+      "name": "B站增强",
       "fname": null,
       "slug": "bilibili",
       "kind": "snippets",
-      "rewrite": 0,
+      "rewrite": 18,
       "filter": 1,
-      "hosts": [],
+      "hosts": [
+        "grpc.biliapi.net",
+        "app.bilibili.com",
+        "api.bilibili.com",
+        "api.live.bilibili.com"
+      ],
       "notes": [
         "已并入本 App 的 HTTPDNS/广告域名配套；来源和分配见 config/shared-scope.json。",
-        "仅提供 B 站 HTTPDNS 分流配套，继续使用原有 B 站增强重写。"
+        "完整远程 B 站增强；启用后删除或停用旧的本地 B 站重写块，避免重复。",
+        "来源：https://raw.githubusercontent.com/kokoryh/Script/master/Surge/module/bilibili.sgmodule"
       ],
       "has_list": true,
-      "snippet": null,
+      "snippet": "snippets/bilibili.snippet",
       "list": "lists/bilibili.list",
       "supplements": [
         {
@@ -287,6 +293,23 @@
           "purpose": "B 站解析服务"
         }
       ]
+    },
+    {
+      "name": "小黑盒去广告",
+      "fname": null,
+      "slug": "xiaoheihe",
+      "kind": "snippets",
+      "rewrite": 2,
+      "filter": 0,
+      "hosts": [
+        "api.xiaoheihe.cn"
+      ],
+      "notes": [
+        "来源：https://github.com/wxs0625/loon-plugins/blob/main/blockAds_all.plugin；仅迁移既有小黑盒规则。"
+      ],
+      "has_list": false,
+      "snippet": "snippets/xiaoheihe.snippet",
+      "list": null
     }
   ],
   "hosts": [
@@ -320,7 +343,12 @@
     "google.cn",
     "www.g.cn",
     "ditu.google.cn",
-    "maps.google.cn"
+    "maps.google.cn",
+    "grpc.biliapi.net",
+    "app.bilibili.com",
+    "api.bilibili.com",
+    "api.live.bilibili.com",
+    "api.xiaoheihe.cn"
   ],
   "assets": {
     "js/JD/JD_remove_ads.js": {
@@ -362,7 +390,7 @@
     }
   },
   "unique": {
-    "rewrites": 116,
+    "rewrites": 136,
     "filters": 45
   },
   "deduped": {

@@ -201,6 +201,21 @@ response if ${url} ~= /^https:\/\/a\.test/i then script("https://kelee.one/Resou
     def test_caiyun_excluded(self):
         self.assertFalse(any('ColorfulClouds' in f for _,f,_ in C.ENABLED))
 
+    def test_bilibili_and_xiaoheihe_are_remote_resources(self):
+        remote=(REPO/'config/rewrite_remote.conf').read_text()
+        for slug in ['bilibili','xiaoheihe']:
+            self.assertIn('/snippets/'+slug+'.snippet,',remote)
+        bili=(REPO/'snippets/bilibili.snippet').read_text().splitlines()
+        self.assertTrue(bili[0].startswith('hostname = '))
+        rules=[line for line in bili if ' url ' in line and not line.startswith('#')]
+        for url,script in [
+            ('https://app.bilibili.com/x/resource/show/tab/v2?fixture=1','/TO8E/loon2qx/main/js/Bilibili/bilibili_json.js'),
+            ('https://grpc.biliapi.net/bilibili.app.dynamic.v2.Dynamic/DynAll','/kokoryh/Script/master/js/bilibili.protobuf.js')]:
+            matched=[line for line in rules if re.search(line.split(' url ',1)[0],url)]
+            self.assertEqual(len(matched),1,url)
+            self.assertTrue(matched[0].endswith(script),url)
+        self.assertNotIn('__RAW_BASE__','\n'.join(bili))
+
     def generated_jq(self,slug,url,body):
         for line in (REPO/'snippets'/(slug+'.snippet')).read_text().splitlines():
             if ' url ' not in line or line.startswith('#'):continue
