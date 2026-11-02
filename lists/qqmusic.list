@@ -1,4 +1,8 @@
-# QQ音乐去广告：原 Loon [Rule] 分流
+# QQ音乐去广告：本 App 分流及已合并的公共配套
+# 公共条目来源及分配见 config/shared-scope.json。
+host, tmeadcomm.y.qq.com, reject
+host, stat.y.qq.com, reject
+host, stat6.y.qq.com, reject
 host, adstats.tencentmusic.com, reject
 host, ad.tencentmusic.com, reject
 host, adcdn.tencentmusic.com, reject

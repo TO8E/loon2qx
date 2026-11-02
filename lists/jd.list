@@ -1,0 +1,9 @@
+# 京东去广告：本 App 分流及已合并的公共配套
+# 公共条目来源及分配见 config/shared-scope.json。
+host, dns.jd.com, reject
+ip-cidr, 101.124.19.122/32, reject
+ip6-cidr, 2402:db40:5100:1011::5/128, reject
+host, dsp-x.jd.com, reject
+host, im-x.jd.com, reject
+host, xlog.jd.com, reject
+host, janapi.jd.com, reject

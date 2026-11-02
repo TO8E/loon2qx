@@ -1,12 +1,10 @@
-# 已选应用广告域名补充：原 Loon [Rule] 分流
-# 仅保留所选服务；逐条来源见 config/shared-scope.json。
-host, tmeadcomm.y.qq.com, reject
-host, stat.y.qq.com, reject
-host, stat6.y.qq.com, reject
-host, dsp-x.jd.com, reject
-host, im-x.jd.com, reject
-host, xlog.jd.com, reject
-host, janapi.jd.com, reject
+# 闲鱼去广告：本 App 分流及已合并的公共配套
+# 公共条目来源及分配见 config/shared-scope.json。
+host, httpdns.alicdn.com, reject
+host, httpdns-api.aliyuncs.com, reject
+host, httpdns-sc.aliyuncs.com, reject
+host, httpdns.danuoyi.tbcache.com, reject
+ip-cidr, 203.107.1.0/24, reject
 host, et.tanx.com, reject
 host, df.tanx.com, reject
 host, opehs.tanx.com, reject

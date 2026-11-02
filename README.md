@@ -1,9 +1,11 @@
 # loon2qx
 
-将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置，并提供 2 份按所选应用收窄的公共规则补充。
+将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置。
+HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的分流配套，沿用原有 B 站增强重写。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
-当前生成 116 条重写、45 条分流、31 个 MITM 主机和 5 个带 QX 兼容层的脚本。
+独立 App 文件合计 126 条重写、77 条分流；去重后仍为 116 条重写、45 条分流。
+共 31 个 MITM 主机和 5 个带 QX 兼容层的脚本。
 这些数字描述文件内容，**不代表已经在手机验证所有 App 的实际效果**。
 
 ## 导入
@@ -13,10 +15,13 @@
 - 远程重写使用裸规则及 `hostname = …`，不含配置段头。其主机由 QX 合并；`config/mitm.txt` 是供本地合并时使用的清单。
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
 - QQ 音乐只有域名分流，不生成或订阅空的重写文件。
+- 同一 App 的 `.snippet` 和 `.list` 配套启停；QX 原生订阅将重写与分流分开读取，不能把 IP/域名分流直接塞进重写文件。
+- B 站只新增 `lists/bilibili.list` 配套，继续启用原来的 B 站增强。
 
-`base/` 现在只包含所选应用的 HTTPDNS、广告域名补充，不再整包翻译两个公共插件。
-它们不是 JS 执行器的依赖；各 App 自己的域名规则仍完整保留在各自资源中。
-广告域名补充只有分流，故不再生成 `base/advertisers.snippet`；更新旧配置时删除这条空重写订阅。
+不再生成或订阅 `base/httpdns.*`、`base/advertisers.*`。更新旧配置时删除这些公共订阅，按下表补上相关 App 的分流。
+各 App 原有规则保持完整，公共补充直接写入它自己的文件。
+阿里系共有项分别随淘宝、闲鱼、高德提供，单独启用任一 App 时不依赖其它 App 的开关。
+同时启用时会有少量同动作规则重复；每个文件内部去重，本地 `merged/` 合并版也去重，不增加新的拦截范围。
 
 ## 公共部分的范围
 
@@ -42,22 +47,21 @@
 
 ## 资源
 
-| 应用/工具 | 主要文件 | 重写 | 分流 |
-|---|---|---:|---:|
-| 已选应用HTTPDNS补充 | `base/httpdns.snippet` | 5 | 9 |
-| 已选应用广告域名补充 | `base/advertisers.list` | 0 | 18 |
-| QQ音乐去广告 | `lists/qqmusic.list` | 0 | 11 |
-| 京东去广告 | `snippets/jd.snippet` | 4 | 0 |
-| 下厨房去广告 | `snippets/xiachufang.snippet` | 7 | 0 |
-| 淘宝去广告 | `snippets/taobao.snippet` | 13 | 6 |
-| 闲鱼去广告 | `snippets/goofish.snippet` | 23 | 0 |
-| 小红书去广告 | `snippets/xhs.snippet` | 21 | 0 |
-| 12306去广告 | `snippets/12306.snippet` | 2 | 1 |
-| 酷安去广告 | `snippets/coolapk.snippet` | 7 | 0 |
-| 高德地图去广告 | `snippets/amap.snippet` | 18 | 0 |
-| 掌上英雄联盟去广告 | `snippets/mlol.snippet` | 6 | 0 |
-| 朴朴超市去广告 | `snippets/pupu.snippet` | 8 | 0 |
-| Google搜索重定向 | `snippets/google.snippet` | 2 | 0 |
+| 应用/工具 | 重写文件 | 分流文件 | 重写行 | 分流行 |
+|---|---|---|---:|---:|
+| QQ音乐去广告 | — | `lists/qqmusic.list` | 0 | 14 |
+| 京东去广告 | `snippets/jd.snippet` | `lists/jd.list` | 4 | 7 |
+| 下厨房去广告 | `snippets/xiachufang.snippet` | — | 7 | 0 |
+| 淘宝去广告 | `snippets/taobao.snippet` | `lists/taobao.list` | 18 | 22 |
+| 闲鱼去广告 | `snippets/goofish.snippet` | `lists/goofish.list` | 28 | 16 |
+| 小红书去广告 | `snippets/xhs.snippet` | — | 21 | 0 |
+| 12306去广告 | `snippets/12306.snippet` | `lists/12306.list` | 2 | 1 |
+| 酷安去广告 | `snippets/coolapk.snippet` | — | 7 | 0 |
+| 高德地图去广告 | `snippets/amap.snippet` | `lists/amap.list` | 23 | 16 |
+| 掌上英雄联盟去广告 | `snippets/mlol.snippet` | — | 6 | 0 |
+| 朴朴超市去广告 | `snippets/pupu.snippet` | — | 8 | 0 |
+| Google搜索重定向 | `snippets/google.snippet` | — | 2 | 0 |
+| B站增强分流配套 | — | `lists/bilibili.list` | 0 | 1 |
 
 `js/` 不是上游的逐字节副本：生成时加入 QX 存储适配及回调保护。
 `build-info.json` 记录脚本来源、上游摘要和生成后摘要；每次构建刷新脚本，避免继续使用旧文件。
@@ -97,6 +101,6 @@ node tests/runtime.cjs
 ```
 
 在镜像工作区运行 `python3 scripts/convert_lpx_to_qx.py` 会使用同一个生成器重建 `qx/`；
-其中 `base/`、`snippets/`、`lists/`、`js/`、`jq/`、`config/` 与 GitHub 发布目录采用相同内容。
+其中 `snippets/`、`lists/`、`js/`、`jq/`、`config/` 与 GitHub 发布目录采用相同内容。
 `qx/conf/quantumultx.conf` 是本地个人配置，不上传到本仓库。公共规则选择清单在 `tools/shared_scope.py`，
 构建先筛选再转换；上游新增无关规则不会自动扩大范围，已选规则消失或策略变化则构建失败。

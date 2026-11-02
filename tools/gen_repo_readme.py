@@ -4,15 +4,19 @@ import json,sys
 from pathlib import Path
 root=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else Path(__file__).resolve().parents[1]
 info=json.loads((root/'build-info.json').read_text());rows=info['rows']
-table='\n'.join('| '+r['name']+' | `'+(r['snippet'] or r['list'])+f"` | {r['rewrite']} | {r['filter']} |" for r in rows)
+table='\n'.join('| '+r['name']+' | '+('`'+r['snippet']+'`' if r['snippet'] else '—')+' | '
+                +('`'+r['list']+'`' if r['list'] else '—')+f" | {r['rewrite']} | {r['filter']} |" for r in rows)
+scope=json.loads((root/'config/shared-scope.json').read_text())
 scope_table='\n'.join('| '+', '.join(g['apps'])+' | '+g['purpose']+' | '+str(len(g['entries']))+' |'
-                      for r in rows if 'scope' in r for g in r['scope']['groups'])
+                      for source in scope.values() for g in source['groups'])
 text=f'''# loon2qx
 
-将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置，并提供 2 份按所选应用收窄的公共规则补充。
+将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置。
+HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的分流配套，沿用原有 B 站增强重写。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
-当前生成 {sum(r['rewrite'] for r in rows)} 条重写、{sum(r['filter'] for r in rows)} 条分流、{len(info['hosts'])} 个 MITM 主机和 {len(info['assets'])} 个带 QX 兼容层的脚本。
+独立 App 文件合计 {sum(r['rewrite'] for r in rows)} 条重写、{sum(r['filter'] for r in rows)} 条分流；去重后仍为 {info['unique']['rewrites']} 条重写、{info['unique']['filters']} 条分流。
+共 {len(info['hosts'])} 个 MITM 主机和 {len(info['assets'])} 个带 QX 兼容层的脚本。
 这些数字描述文件内容，**不代表已经在手机验证所有 App 的实际效果**。
 
 ## 导入
@@ -22,10 +26,13 @@ text=f'''# loon2qx
 - 远程重写使用裸规则及 `hostname = …`，不含配置段头。其主机由 QX 合并；`config/mitm.txt` 是供本地合并时使用的清单。
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
 - QQ 音乐只有域名分流，不生成或订阅空的重写文件。
+- 同一 App 的 `.snippet` 和 `.list` 配套启停；QX 原生订阅将重写与分流分开读取，不能把 IP/域名分流直接塞进重写文件。
+- B 站只新增 `lists/bilibili.list` 配套，继续启用原来的 B 站增强。
 
-`base/` 现在只包含所选应用的 HTTPDNS、广告域名补充，不再整包翻译两个公共插件。
-它们不是 JS 执行器的依赖；各 App 自己的域名规则仍完整保留在各自资源中。
-广告域名补充只有分流，故不再生成 `base/advertisers.snippet`；更新旧配置时删除这条空重写订阅。
+不再生成或订阅 `base/httpdns.*`、`base/advertisers.*`。更新旧配置时删除这些公共订阅，按下表补上相关 App 的分流。
+各 App 原有规则保持完整，公共补充直接写入它自己的文件。
+阿里系共有项分别随淘宝、闲鱼、高德提供，单独启用任一 App 时不依赖其它 App 的开关。
+同时启用时会有少量同动作规则重复；每个文件内部去重，本地 `merged/` 合并版也去重，不增加新的拦截范围。
 
 ## 公共部分的范围
 
@@ -46,8 +53,8 @@ text=f'''# loon2qx
 
 ## 资源
 
-| 应用/工具 | 主要文件 | 重写 | 分流 |
-|---|---|---:|---:|
+| 应用/工具 | 重写文件 | 分流文件 | 重写行 | 分流行 |
+|---|---|---|---:|---:|
 {table}
 
 `js/` 不是上游的逐字节副本：生成时加入 QX 存储适配及回调保护。
@@ -88,7 +95,7 @@ node tests/runtime.cjs
 ```
 
 在镜像工作区运行 `python3 scripts/convert_lpx_to_qx.py` 会使用同一个生成器重建 `qx/`；
-其中 `base/`、`snippets/`、`lists/`、`js/`、`jq/`、`config/` 与 GitHub 发布目录采用相同内容。
+其中 `snippets/`、`lists/`、`js/`、`jq/`、`config/` 与 GitHub 发布目录采用相同内容。
 `qx/conf/quantumultx.conf` 是本地个人配置，不上传到本仓库。公共规则选择清单在 `tools/shared_scope.py`，
 构建先筛选再转换；上游新增无关规则不会自动扩大范围，已选规则消失或策略变化则构建失败。
 '''

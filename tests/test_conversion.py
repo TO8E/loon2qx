@@ -89,8 +89,8 @@ URL-REGEX, "^http:\/\/\d+\.\d+\.\d+\.\d+\/d\?", REJECT
         self.assertTrue(blocked('http://1.2.3.4/d?dn=example.com','Dida/1.0'))
 
     def test_scoped_httpdns_blocks_taobao_without_generic_app_exceptions(self):
-        rows=[line for line in (REPO/'base/httpdns.snippet').read_text().splitlines()
-              if line.strip() and not line.startswith('#')]
+        rows=[line for line in (REPO/'snippets/taobao.snippet').read_text().splitlines()
+              if ' url ' in line and not line.startswith('#')]
         self.assertFalse(any('url-and-header' in row for row in rows))
         patterns=[row.split(' url ',1)[0] for row in rows]
         def blocked(url):return any(re.search(pattern,url) for pattern in patterns)
@@ -103,18 +103,46 @@ URL-REGEX, "^http:\/\/\d+\.\d+\.\d+\.\d+\/d\?", REJECT
             self.assertFalse(blocked(url),url)
 
     def test_scoped_lists_keep_selected_services_without_unrelated_rules(self):
-        def rules(name):return [line for line in (REPO/'base'/name).read_text().splitlines()
+        def rules(name):return [line for line in (REPO/'lists'/name).read_text().splitlines()
                                 if line.strip() and not line.startswith('#')]
-        httpdns=rules('httpdns.list');ads=rules('advertisers.list')
-        for host in ['dns.jd.com','httpdns.bilivideo.com','httpdns-api.aliyuncs.com']:
-            self.assertEqual(self.match_filters(httpdns,host),'reject')
+        all_rules=rules('jd.list')+rules('bilibili.list')+rules('qqmusic.list')+rules('taobao.list')
+        for filename,host in [('jd.list','dns.jd.com'),('bilibili.list','httpdns.bilivideo.com'),
+                              ('taobao.list','httpdns-api.aliyuncs.com')]:
+            self.assertEqual(self.match_filters(rules(filename),host),'reject')
         for host in ['httpdns.baidu.com','dns.weixin.qq.com','unrelated.httpdns.example.test']:
-            self.assertIsNone(self.match_filters(httpdns,host))
-        for host in ['tmeadcomm.y.qq.com','dsp-x.jd.com','atoken.m.taobao.com']:
-            self.assertEqual(self.match_filters(ads,host),'reject')
-        self.assertIsNone(self.match_filters(ads,'www.jiguang.cn'))
-        self.assertFalse((REPO/'base/advertisers.snippet').exists())
-        self.assertNotIn('base/advertisers.snippet',(REPO/'config/rewrite_remote.conf').read_text())
+            self.assertIsNone(self.match_filters(all_rules,host))
+        for filename,host in [('qqmusic.list','tmeadcomm.y.qq.com'),('jd.list','dsp-x.jd.com'),
+                              ('taobao.list','atoken.m.taobao.com')]:
+            self.assertEqual(self.match_filters(rules(filename),host),'reject')
+        self.assertIsNone(self.match_filters(all_rules,'www.jiguang.cn'))
+        for filename in ['rewrite_remote.conf','filter_remote.conf']:
+            self.assertNotIn('/base/',(REPO/'config'/filename).read_text())
+        self.assertFalse(any((REPO/'base').glob('*')))
+
+    def test_ali_apps_include_shared_rules_without_other_apps_enabled(self):
+        for slug in ['taobao','goofish','amap']:
+            lines=[line for line in (REPO/'lists'/(slug+'.list')).read_text().splitlines()
+                   if line.strip() and not line.startswith('#')]
+            self.assertEqual(self.match_filters(lines,'httpdns-api.aliyuncs.com'),'reject',slug)
+            self.assertEqual(self.match_filters(lines,'et.tanx.com'),'reject',slug)
+            self.assertEqual(len(lines),len(set(lines)),slug)
+            rewrites=[line for line in (REPO/'snippets'/(slug+'.snippet')).read_text().splitlines()
+                      if ' url ' in line and not line.startswith('#')]
+            matching=[line for line in rewrites if re.search(line.split(' url ')[0],
+                         'http://amdc.m.taobao.com/amdc/mobileDispatch')]
+            self.assertEqual(len(matching),1,slug)
+            self.assertTrue(matching[0].endswith(' url reject'))
+
+    def test_shared_filter_copies_have_no_conflicting_policies(self):
+        seen={}
+        for path in (REPO/'lists').glob('*.list'):
+            for line in path.read_text().splitlines():
+                if not line.strip() or line.startswith('#'):continue
+                kind,value,policy=[p.strip() for p in line.split(',')]
+                key=(kind,value)
+                if key in seen:self.assertEqual(seen[key],policy,key)
+                seen[key]=policy
+        self.assertEqual(seen['host','ad.12306.cn'],'direct')
 
     def test_shared_selection_ignores_additions_but_fails_on_changed_selected_rule(self):
         profile={'fixture.lpx':[dict(apps=['京东'],purpose='fixture',basis='fixture',

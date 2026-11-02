@@ -1,6 +1,9 @@
 """Select shared rules for this migration profile before converting them to QX."""
 from convert_lpx_to_qx import split_args
 
+TARGETS = {'京东':'jd', '淘宝':'taobao', '闲鱼':'goofish', '高德':'amap',
+           'QQ音乐':'qqmusic', '哔哩哔哩':'bilibili'}
+
 
 def domains(*values):
     return [('DOMAIN', value) for value in values]

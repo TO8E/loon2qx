@@ -1,0 +1,3 @@
+# B站增强分流配套：本 App 分流及已合并的公共配套
+# 公共条目来源及分配见 config/shared-scope.json。
+host, httpdns.bilivideo.com, reject

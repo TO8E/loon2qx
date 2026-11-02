@@ -1,5 +1,5 @@
 {
-  "httpdns": {
+  "Block_HTTPDNS.lpx": {
     "source": "https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx",
     "selected_rules": 14,
     "upstream_rule_count": 162,
@@ -23,6 +23,9 @@
             "line": 148,
             "rule": "IP-CIDR6, 2402:db40:5100:1011::5/128, REJECT, no-resolve"
           }
+        ],
+        "targets": [
+          "jd"
         ]
       },
       {
@@ -74,6 +77,11 @@
             "line": 114,
             "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.219\\/amdc\\/mobileDispatch\", REJECT"
           }
+        ],
+        "targets": [
+          "taobao",
+          "goofish",
+          "amap"
         ]
       },
       {
@@ -87,11 +95,14 @@
             "line": 93,
             "rule": "DOMAIN, httpdns.bilivideo.com, REJECT"
           }
+        ],
+        "targets": [
+          "bilibili"
         ]
       }
     ]
   },
-  "advertisers": {
+  "BlockAdvertisers.lpx": {
     "source": "https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx",
     "selected_rules": 18,
     "upstream_rule_count": 346,
@@ -115,6 +126,9 @@
             "line": 144,
             "rule": "DOMAIN, stat6.y.qq.com, REJECT"
           }
+        ],
+        "targets": [
+          "qqmusic"
         ]
       },
       {
@@ -140,6 +154,9 @@
             "line": 270,
             "rule": "DOMAIN, janapi.jd.com, REJECT"
           }
+        ],
+        "targets": [
+          "jd"
         ]
       },
       {
@@ -195,6 +212,11 @@
             "line": 247,
             "rule": "DOMAIN, arms-retcode.aliyuncs.com, REJECT"
           }
+        ],
+        "targets": [
+          "taobao",
+          "goofish",
+          "amap"
         ]
       }
     ]
