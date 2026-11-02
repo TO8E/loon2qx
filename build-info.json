@@ -352,6 +352,13 @@
       "upstream_sha256": "76659d365b0da3eef1ef54cde44254f9d951799138af52a3edeea2e29a43f83f",
       "sha256": "46ebf1407aa3902c4ee880e73649f61334b754951497a48a844c2a77d5274278",
       "adapted": true
+    },
+    "js/Bilibili/bilibili_json.js": {
+      "source": "https://raw.githubusercontent.com/kokoryh/Script/master/js/bilibili_json.js",
+      "upstream_sha256": "70cbd724e2c3b243f7f5d1fb2b793063807864a71ca646da17573b5cebae1cda",
+      "sha256": "e4043f950a3ebcf76f8d1af58838039814065d4bdfe93bc92b79c327ff19ad12",
+      "adapted": true,
+      "purpose": "保留动态/关注底栏，兼容名称变化；未知底栏结构保留原样。"
     }
   },
   "unique": {

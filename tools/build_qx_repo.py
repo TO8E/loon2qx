@@ -43,6 +43,21 @@ def supplements():
                 target['sources'].append(dict(source=report['source'],purpose=group['purpose']))
     return per_app,reports
 
+def bili_navigation_asset(out,assets):
+    tool_dir=Path(__file__).resolve().parent
+    original=(tool_dir/'upstream/bilibili_json.js').read_text(encoding='utf-8')
+    helper=(tool_dir/'bilibili-navigation.js').read_text(encoding='utf-8')
+    old='const e=["首页","动态","我的"];i.data.bottom=i.data.bottom.filter((i=>e.includes(i.name)))'
+    if original.count(old)!=1:raise ValueError('Bilibili upstream navigation changed; review patch before rebuilding')
+    patched=original.replace(old,'i.data.bottom=qxBilibiliBottomTabs(i.data.bottom)')
+    source='https://raw.githubusercontent.com/kokoryh/Script/master/js/bilibili_json.js'
+    relative='js/Bilibili/bilibili_json.js'
+    adapted=C.adapt_script('// Upstream: '+source+'\n'+helper+'\n'+patched,relative)
+    write(out/relative,adapted)
+    assets[relative]=dict(source=source,upstream_sha256=hashlib.sha256(original.encode()).hexdigest(),
+                         sha256=hashlib.sha256(adapted.encode()).hexdigest(),adapted=True,
+                         purpose='保留动态/关注底栏，兼容名称变化；未知底栏结构保留原样。')
+
 def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
     result=C.convert(name,filename) if filename else dict(rewrites=[],filters=[],notes=[],hosts=[],tasks=[])
     supplement=supplement or {}
@@ -114,6 +129,7 @@ def build(out,raw=RAW):
         seen_rewrites.update(rw);seen_filters.update(ft)
         tasks += tk
     hosts=list(dict.fromkeys(hosts))
+    bili_navigation_asset(out,assets)
     for name in ['updatable.jq','search_poi_detail.jq']:
         source=Path(C.JQSRC)/'Amap'/name
         if not source.is_file():raise ValueError('Missing jq source: '+str(source))

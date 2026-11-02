@@ -5,7 +5,7 @@ HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
 独立 App 文件合计 126 条重写、77 条分流；去重后仍为 116 条重写、45 条分流。
-共 31 个 MITM 主机和 5 个带 QX 兼容层的脚本。
+共 31 个 MITM 主机和 6 个带 QX 兼容层的脚本。
 这些数字描述文件内容，**不代表已经在手机验证所有 App 的实际效果**。
 
 ## 导入
@@ -67,6 +67,19 @@ HTTPDNS、广告域名配套已并入各 App；另外提供 B 站增强所需的
 `build-info.json` 记录脚本来源、上游摘要和生成后摘要；每次构建刷新脚本，避免继续使用旧文件。
 `jq/` 保存内联使用的原文，`tools/` 为生成/检查工具，`tests/` 为行为回归用例。
 
+## B 站增强底栏修正
+
+用户完整配置中的 kokoryh Bilibili 增强使用 `js/Bilibili/bilibili_json.js` 适配版。
+原作者的底栏筛选只认“首页、动态、我的”，会丢弃名称改为“关注”或其它语言的入口。
+适配版同时识别入口 URI、tab_id、已知 id 和名称，保留原入口的路由、图标和顺序；
+遇到无法确认的底栏结构则保留原样。其它 JSON 处理逻辑沿用作者快照。
+它没有现成的 BoxJS 设置页，本修正默认启用，不需要额外开关。
+
+原脚本快照保存在 `tools/upstream/bilibili_json.js`，修正逻辑在 `tools/bilibili-navigation.js`；
+构建只替换底栏筛选，更新上游后匹配不到原逻辑会停止构建，要求重新核对。
+现有 B 站增强中指向作者 `bilibili_json.js` 的 URL 可替换为本仓库同名脚本 Raw URL，
+其余 protobuf、皮肤脚本继续使用原来的来源。不要同时加载两条处理同一接口的重写。
+
 ## 已处理的兼容问题
 
 - 保留 Loon 正则的 `/i` 等标志；多个同 URL、同阶段的 JSON 操作顺序合并。
@@ -98,6 +111,7 @@ python3 tools/gen_repo_readme.py .
 python3 tools/check_qx.py --dir .
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 node tests/runtime.cjs
+node tests/bilibili-navigation.cjs
 ```
 
 在镜像工作区运行 `python3 scripts/convert_lpx_to_qx.py` 会使用同一个生成器重建 `qx/`；
