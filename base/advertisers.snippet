@@ -1,0 +1,10 @@
+hostname = video-dsp.pddpic.com, t-dsp.pinduoduo.com, images.pinduoduo.com
+# 广告平台拦截器 ← hub.kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx
+# 拦截穿山甲/巨量/腾讯广告等投放域名
+# 由 loon2qx 自动直译，勿手改（改了源插件就重跑 scripts/build_qx_repo.py）
+# 说明: AND(关键字+后缀) → host-wildcard 近似: *tnc*.capcutapi.com/zijieapi.com/isnssdk.com/toutiaoapi.com/bytedance.com/snssdk.com/sgsnssdk.com / AND(关键字+后缀) → host-wildcard 近似: *-ad-*.byteimg.com / AND(多关键字) → 取最长关键字 host-keyword -normal.zijieapi.com 近似 / QX 无 no-resolve 参数，已省略（ip-cidr 直接匹配目的 IP，不影响结果） / AND(关键字+后缀) → host-wildcard 近似: *adash*.ut.taobao.com
+# reject(404) → reject
+^https:\/\/video-dsp\.pddpic\.com\/market-dsp-video\/ url reject
+^https:\/\/t-dsp\.pinduoduo\.com\/dspcb\/i\/mrk_ url reject
+^https:\/\/images\.pinduoduo\.com\/mrk\/ url reject
+^https:\/\/images\.pinduoduo\.com\/marketing_api\/ url reject

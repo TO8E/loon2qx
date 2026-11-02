@@ -1,0 +1,29 @@
+hostname = appconf.mail.163.com, msglb.91160.com, ucdc2-upaas.uc.cn, gw-cn.jiaoliuqu.com, cdn.wup.huya.com, gslbali.ximalaya.com
+# HTTPDNS拦截器 ← hub.kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx
+# 拦截 HTTPDNS 明文解析，保证去广告请求走代理 DNS
+# 由 loon2qx 自动直译，勿手改（改了源插件就重跑 scripts/build_qx_repo.py）
+# 说明: USER-AGENT 规则 → QX user-agent filter（httpdns*） / USER-AGENT 规则 → QX user-agent filter（httpsdns*） / USER-AGENT 规则 → QX user-agent filter（Httpdns*） / USER-AGENT 规则 → QX user-agent filter（Httpsdns*） / AND(URL+UA) → 用 user-agent %E5%98%80%E5%97%92%E5%87%BA%E8%A1%8C* 近似 / QX 无 no-resolve 参数，已省略（ip-cidr 直接匹配目的 IP，不影响结果） / 原插件 [MitM] 漏了这些主机，已补: cdn.wup.huya.com, gslbali.ximalaya.com（否则对应 https 重写不会触发）
+# URL-REGEX REJECT → QX 无 url-regex filter，改用 rewrite reject(404)
+^http:\/\/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/v?[0-9]+)?\/(?:sign_)?(?:(?:d|ss)[46]?|resolve)\? url reject
+^http:\/\/\[[0-9a-fA-F:]+\](?:\/v?[0-9]+)?\/(?:sign_)?(?:(?:d|ss)[46]?|resolve)\? url reject
+^http:\/\/103\.44\.58\.64\/md\? url reject
+^http:\/\/cdn\.wup\.huya\.com\/launch\/queryHttpDns url reject
+^http:\/\/xmc\.ximalaya\.com\/xmlymain-login-web\/login\/ url reject
+^http:\/\/amdc\.m\.taobao\.com\/amdc\/mobileDispatch url reject
+^http:\/\/47\.246\.103\.9\/amdc\/mobileDispatch url reject
+^http:\/\/47\.246\.103\.10\/amdc\/mobileDispatch url reject
+^http:\/\/59\.82\.113\.10\/amdc\/mobileDispatch url reject
+^http:\/\/59\.82\.113\.219\/amdc\/mobileDispatch url reject
+^http:\/\/103\.37\.155\.60\/fetch url reject
+^http:\/\/api\.weibo\.cn\/\d+\/httpdns\/config url reject
+^http:\/\/api\.weibo\.cn\/httpdns\/config url reject
+^http:\/\/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\/v\d\/resolv\? url reject
+^http:\/\/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?):\d+\/httpdns\/ url reject
+^http:\/\/\[[0-9a-fA-F:]+\]:\d+\/httpdns\/ url reject
+^https?:\/\/appconf\.mail\.163\.com\/mailmaster\/api\/http\/urlConfig\.do$ url reject-dict
+# reject(404) → reject
+^https?:\/\/cdn\.wup\.huya\.com\/monitor\/monitor\.jsp url reject
+^https:\/\/msglb\.91160\.com\/msg\/outer\/broker\/get$ url reject-dict
+^https:\/\/gslbali\.ximalaya\.com\/linkeye-cloud\/httpdns\/ url reject
+^https:\/\/ucdc\d?-upaas\.uc\.cn\/api\/v\d\/dns_query\? url reject-dict
+^https:\/\/gw-cn\.jiaoliuqu\.com\/taqu-im-broadcast-srv\/v\d\/Comet\/get\? url reject-dict

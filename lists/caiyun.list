@@ -1,0 +1,4 @@
+# 彩云天气去广告 分流（来自 Loon 插件 [Rule] 段）
+host, abyss.cyapi.cn, reject
+host, ad.cyapi.cn, reject
+host, gather.colorfulclouds.net, reject
