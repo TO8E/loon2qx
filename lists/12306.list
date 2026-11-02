@@ -1,2 +1,2 @@
-# 12306去广告 分流（来自 Loon 插件 [Rule] 段）
+# 12306去广告：原 Loon [Rule] 分流
 host, ad.12306.cn, direct

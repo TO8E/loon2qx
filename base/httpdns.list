@@ -1,12 +1,10 @@
-# HTTPDNS拦截器 分流（来自 Loon 插件 [Rule] 段）
+# HTTPDNS拦截器：原 Loon [Rule] 分流
 host-keyword, httpdns, reject
 host-keyword, httpsdns, reject
 user-agent, httpdns*, reject
 user-agent, httpsdns*, reject
 user-agent, Httpdns*, reject
 user-agent, Httpsdns*, reject
-user-agent, %E5%98%80%E5%97%92%E5%87%BA%E8%A1%8C*, direct
-user-agent, %E5%98%80%E5%97%92%E5%87%BA%E8%A1%8C*, direct
 host, yyapp-httpdns.gslb.yy.com, reject
 host, union-httpdns.gslb.yy.com, reject
 host, yuyin-httpdns.gslb.yy.com, reject
@@ -118,7 +116,6 @@ host, httpdns-sdk.n.netease.com, reject
 host, httpdns.yunxindns.com, reject
 host, lofter.httpdns.c.163.com, reject
 host, music.httpdns.c.163.com, reject
-host, httpdns.yunxindns.com, reject
 ip-cidr, 59.111.239.61/32, reject
 ip-cidr, 59.111.239.62/32, reject
 ip-cidr, 115.236.121.51/32, reject
@@ -138,10 +135,8 @@ ip-cidr, 116.85.2.41/32, reject
 ip-cidr, 116.85.3.39/32, reject
 ip-cidr, 123.207.209.142/32, reject
 ip-cidr, 139.199.240.84/32, reject
-host, httpdns.zybang.com, reject
 host, serveraddr.service.kugou.com, reject
 host, twns.p2ptun.qq.com, reject
 host, tp2p.kg.qq.com, reject
 ip-cidr, 81.71.61.216/32, reject
 host, httpdns.immomo.com, reject
-host, httpdns.zybang.com, reject

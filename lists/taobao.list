@@ -1,4 +1,7 @@
-# 淘宝去广告 分流（来自 Loon 插件 [Rule] 段）
-# 与 base/ 公共规则重复的 4 行已剔除: host, adashx.m.taobao.com, reject; host, ossgw.alicdn.com, reject; host, ems.youku.com, reject; host, hudong.alicdn.com, reject
+# 淘宝去广告：原 Loon [Rule] 分流
+host, adashx.m.taobao.com, reject
+host, ossgw.alicdn.com, reject
+host, ems.youku.com, reject
+host, hudong.alicdn.com, reject
 host, h-adashx.ut.taobao.com, reject
 host, ut.taobao.com, reject

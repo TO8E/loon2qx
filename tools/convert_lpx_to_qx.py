@@ -27,15 +27,15 @@ Loon .lpx  ->  Quantumult X 原生写法
 
 用法:  python3 scripts/convert_lpx_to_qx.py [--script-base URL]
 """
-import json, os, re, subprocess, sys, time
+import itertools, json, os, re, sre_parse, subprocess, sys, time
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = next((p for p in (os.path.dirname(HERE), os.path.dirname(os.path.dirname(HERE)))
+             if os.path.isdir(os.path.join(p, "mirror"))), os.path.dirname(HERE))
 SRC = os.path.join(ROOT, "mirror/upstream/kelee.one/Tool/Loon/Lpx")
 JQSRC = os.path.join(ROOT, "mirror/upstream/kelee.one/Resource/JQLang")
 MIRROR = os.path.join(ROOT, "mirror")
 QX = os.path.join(ROOT, "qx")
-for d in ("snippets", "lists", "merged", "jq"):
-    os.makedirs(os.path.join(QX, d), exist_ok=True)
 
 BASE = open(os.path.join(ROOT, "build/base.txt")).read().strip() \
     if os.path.exists(os.path.join(ROOT, "build/base.txt")) else ""
@@ -52,7 +52,6 @@ ENABLED = [
     ("淘宝去广告", "Taobao_remove_ads.lpx", "域名拦截 + reject-dict + 响应脚本"),
     ("闲鱼去广告", "FleaMarket_remove_ads.lpx", "纯 jsonjq"),
     ("小红书去广告", "RedPaper_remove_ads.lpx", "reject-img/dict + jsonjq + 响应脚本"),
-    ("彩云天气去广告", "ColorfulClouds_remove_ads.lpx", "域名拦截 + reject-dict + 响应脚本"),
     ("12306去广告", "12306_remove_ads.lpx", "直连规则 + jsonjq + 请求头脚本"),
     ("酷安去广告", "CoolApk_remove_ads.lpx", "纯 jsonjq"),
     ("高德地图去广告", "Amap_remove_ads.lpx", "大量 jsonjq + 2 个 jq_file"),
@@ -64,14 +63,14 @@ ENABLED = [
 # 已启用但按规则跳过(原生 QX / 无 kelee 对应 / Loon 专属)
 SKIPPED = {
     "YouTube去广告": ("YouTube_remove_ads.lpx",
-                   "kelee 版是 Loon 专属 JS（binary_body_mode + $argument 参数注入），QX 无等价；保留你现有的 ddgksf2013 原生 conf"),
+                   "不在本次转换范围；binary_body_mode 和参数需要单独验证，不能仅凭字段名认定 QX 不支持；保留现有 QX 方案"),
     "BoxJS": ("BoxJs.lpx", "kelee 插件只是 chavyleung chavy.boxjs.js 的 Loon 外壳；QX 官方 boxjs.rewrite.quanx.conf 即原生"),
     "Sub-Store": ("Sub-Store.lpx", "kelee 插件只是官方 JS 的 Loon 外壳；QX 官方 QX.snippet 即原生"),
     "Script-Hub": ("Script-Hub.lpx", "kelee 插件只是官方 script-hub.js 的 Loon 外壳；QX 官方 script-hub.qx.conf 即原生"),
     "中国联通去广告": (None, "kelee 无对应插件（你用的是 ddgksf2013 原生）"),
     "一汽大众去广告": (None, "kelee 无对应插件（zirawell 原生）"),
     "AdGuard": (None, "kelee 无对应插件（yfamilys 原生）"),
-    "哔哩哔哩增强": (None, "你已用 kokoryh 原生改写到 rewrite_local；kelee 的 B 站插件是另一套规则，未启用"),
+    "哔哩哔哩增强": (None, "已有 kokoryh 本地转换版，非作者官方 QX 配置；本批不重复转换"),
     "小黑盒去广告": (None, "你用的是 wxs0625 Loon 插件转换版，非 kelee 源"),
     "平安好车主去广告": (None, "配置中 enabled=false"),
     "拼多多去广告": (None, "配置中 enabled=false"),
@@ -92,7 +91,8 @@ RULE_RE = re.compile(r"^\s*(?P<type>[A-Za-z0-9-]+)\s*,\s*(?P<rest>.+?)\s*$")
 
 
 def read(path):
-    return open(path, encoding="utf-8", errors="replace").read()
+    with open(path, encoding="utf-8", errors="replace") as stream:
+        return stream.read()
 
 
 def sections(text):
@@ -141,10 +141,10 @@ def split_args(s):
         if ch == '"':
             inq = True
             buf += ch
-        elif ch == "[":
+        elif ch in "[({":
             depth += 1
             buf += ch
-        elif ch == "]":
+        elif ch in "])}":
             depth -= 1
             buf += ch
         elif ch == "," and depth == 0:
@@ -160,12 +160,14 @@ def split_args(s):
 def unq(s):
     s = s.strip()
     if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
-        return s[1:-1].replace('\\"', '"').replace("\\\\", "\\")
+        return json.loads(s)
     return s
 
 
 def as_jq_value(v):
-    v = unq(v)
+    v = v.strip()
+    if v.startswith('"'):
+        return json.dumps(unq(v), ensure_ascii=False)
     if v in ("{}", "[]", "true", "false", "null"):
         return v
     if re.fullmatch(r"-?\d+(\.\d+)?", v):
@@ -201,7 +203,9 @@ def jq_comment_strip(expr):
             continue
         out.append(c)
         i += 1
-    return re.sub(r"\s+", " ", "".join(out)).strip()
+    # Only collapse whitespace outside quoted strings.
+    text = "".join(out)
+    return " ".join(re.findall(r'"(?:\\.|[^"\\])*"|[^\s"]+', text)).strip()
 
 
 def local_jq(url):
@@ -231,11 +235,99 @@ def map_policy(p):
     return POLICY.get(p.strip().upper(), p.strip())
 
 
+def regex_flags(pattern, flags):
+    if set(flags) - set("ims"):
+        raise ValueError("Unsupported regular-expression flags: " + flags)
+    return ("(?" + "".join(c for c in "ims" if c in flags) + ")" if flags else "") + pattern
+
+
+def and_domain_filters(a, policy):
+    """Exact glob forms for the conjunctions used by this source set."""
+    kws, sufs = a["kws"], a["sufs"]
+    if sufs and len(kws) == 1:
+        key = kws[0]
+        out = []
+        for suffix in sufs:
+            if key in suffix:
+                out.append(f"host-suffix, {suffix}, {policy}")
+            else:
+                out.append(f"host-wildcard, *{key}*.{suffix}, {policy}")
+        return out
+    if not sufs and len(kws) == 2:
+        first, second = kws
+        if first in second or second in first:
+            return [f"host-keyword, {max(kws, key=len)}, {policy}"]
+        if any(x.endswith(y[:i]) for x,y in [(first,second),(second,first)]
+               for i in range(1,min(len(first),len(second)))):
+            raise ValueError("Overlapping keyword conjunction requires explicit conversion")
+        return [f"host-wildcard, *{a}*{b}*, {policy}" for a,b in itertools.permutations(kws)]
+    raise ValueError("Unsupported domain conjunction")
+
+
+def adapt_script(text, relative_path):
+    """Keep upstream logic, map storage, and finish QX callbacks exactly once."""
+    storage = ""
+    if "$persistentStore" in text:
+        storage = """const $persistentStore = {
+  read: key => $prefs.valueForKey(key) ?? null,
+  write: (value, key) => value == null ? $prefs.removeValueForKey(key) : $prefs.setValueForKey(value, key)
+};
+"""
+    return ("// Generated QX adapter; original attribution retained below.\n"
+            "// Storage uses $prefs; empty/invalid responses pass through; only the first $done is emitted.\n"
+            "((__finish) => {\nlet __finished = false;\n"
+            "const $done = (...args) => { if (!__finished) { __finished = true; __finish(...args); } };\n"
+            + storage + "try {\n"
+            "if (typeof $response !== 'undefined' && !$response.body) { $done({}); return; }\n"
+            + text + "\n} catch (__error) {\n"
+            "console.log('[loon2qx] script passed through: ' + String(__error));\n"
+            "if (!__finished) $done({});\n}\n})($done);\n")
+
+
+def translated_script(url, raw_base="https://raw.githubusercontent.com/TO8E/loon2qx/main"):
+    prefix = "https://kelee.one/Resource/JavaScript/"
+    return raw_base.rstrip("/") + "/js/" + url[len(prefix):] if url.startswith(prefix) else url
+
+
+def complete_hosts(rewrites, initial):
+    def expand(tokens):
+        result = [""]
+        for op, value in tokens:
+            if op == sre_parse.LITERAL: choices = [chr(value)]
+            elif op == sre_parse.SUBPATTERN: choices = expand(value[3])
+            elif op == sre_parse.BRANCH: choices = [s for branch in value[1] for s in expand(branch)]
+            elif op == sre_parse.MAX_REPEAT and value[1] <= 1: choices = ([""] if value[0] == 0 else []) + expand(value[2])
+            elif op == sre_parse.IN:
+                choices = []
+                for kind, val in value:
+                    if kind == sre_parse.LITERAL: choices.append(chr(val))
+                    elif kind == sre_parse.RANGE: choices += [chr(x) for x in range(val[0],val[1]+1)]
+                    elif kind == sre_parse.CATEGORY and val == sre_parse.CATEGORY_DIGIT: choices += list("0123456789")
+                    else: raise ValueError("Unbounded hostname class")
+            elif op == sre_parse.AT: continue
+            else: raise ValueError("Unbounded hostname regex")
+            result = [a+b for a in result for b in choices]
+            if len(result)>128: raise ValueError("Hostname expansion too large")
+        return result
+    hosts = list(dict.fromkeys(initial))
+    for rx,stage,action,note in rewrites:
+        rx = re.sub(r'^\(\?[ims]+\)', '', rx).replace(r'\/', '/')
+        match = re.match(r'^\^https\??://([^/]+)', rx)
+        if not match: continue
+        authority = match.group(1).split('(?=',1)[0]
+        try: names = expand(sre_parse.parse(authority))
+        except (ValueError,re.error): continue
+        for name in names:
+            if re.fullmatch(r'[a-zA-Z0-9_.-]+',name) and '.' in name and name not in hosts: hosts.append(name)
+    return hosts
+
+
 def convert(show, fname):
     text = read(os.path.join(SRC, fname))
     sec = sections(text)
     filters, rewrites, tasks, hosts, notes = [], [], [], [], []
     jq_files = {}
+    exceptions = []
 
     # ---- [Rule] ----
     for line in sec.get("Rule", []):
@@ -245,22 +337,16 @@ def convert(show, fname):
             a = parse_and(line)
             pol = map_policy(a["policy"])
             if a["protos"]:
-                notes.append("原 AND 规则含 PROTOCOL 条件，QX 无协议匹配；"
-                             "等价做法是在 [general] 加 `udp_drop_list = 443, STUN, QUIC`"
-                             f"（你已有 443, STUN）— 原规则: {line.strip()[:70]}…")
+                notes.append("未转换按域名限定的 QUIC 条件：全局 udp_drop_list=QUIC 会扩大到所有应用，"
+                             "不是等价转换；本插件不修改 general，也不拒绝该域名的 TCP 流量。")
             elif a["sufs"] and a["kws"]:
-                for k in a["kws"]:
-                    for sfx in a["sufs"]:
-                        filters.append(f"host-wildcard, *{k}*{sfx}, {pol}")
-                notes.append(f"AND(关键字+后缀) → host-wildcard 近似: "
-                             f"*{'/'.join(a['kws'])}*.{'/'.join(a['sufs'])}")
+                filters.extend(and_domain_filters(a, pol))
             elif a["kws"]:
-                k = max(a["kws"], key=len)
-                filters.append(f"host-keyword, {k}, {pol}")
-                notes.append(f"AND(多关键字) → 取最长关键字 host-keyword {k} 近似")
-            elif a["uas"]:
-                filters.append(f"user-agent, {a['uas'][0]}, {pol}")
-                notes.append(f"AND(URL+UA) → 用 user-agent {a['uas'][0]} 近似")
+                filters.extend(and_domain_filters(a, pol))
+            elif a["uas"] and a["urls"] and pol == "direct":
+                exceptions.extend((unq(url), unq(ua)) for url in a["urls"] for ua in a["uas"])
+                notes.append("URL+UA 放行只豁免指定 HTTPDNS 请求的重写拦截，不再把整个 App 设为直连；"
+                             "QX 不支持按 URL 指定 DIRECT，这些例外的线路继续遵循主配置分流。")
             else:
                 notes.append(f"无法等价: `{line.strip()[:80]}`")
             continue
@@ -269,13 +355,16 @@ def convert(show, fname):
             notes.append(f"未识别的规则: {line.strip()}")
             continue
         typ, rest = m.group("type").upper(), m.group("rest")
-        parts = [p.strip() for p in rest.split(",")]
-        value = parts[0]
+        parts = split_args(rest)
+        value = parts[0].strip()
+        # Rule values quote regexes literally (\w, \d, ...), not as JSON strings.
+        if value.startswith('"') and value.endswith('"'):
+            value = value[1:-1]
         flags = [f for f in parts[1:] if f.lower() in ("no-resolve", "force-remote-dns", "pre-matching")]
         cand = [f for f in parts[1:] if f.lower() not in ("no-resolve", "force-remote-dns", "pre-matching")]
         policy = map_policy(cand[-1] if cand else "REJECT")
         if flags:
-            notes.append("QX 无 " + "/".join(flags) + " 参数，已省略（ip-cidr 直接匹配目的 IP，不影响结果）")
+            notes.append("省略无法直接映射的 " + "/".join(flags) + "；QX 的解析/匹配流程不保证与 Loon 相同。")
         if typ == "DOMAIN":
             filters.append(f"host, {value}, {policy}")
         elif typ == "DOMAIN-SUFFIX":
@@ -294,7 +383,9 @@ def convert(show, fname):
             filters.append(f"user-agent, {value.strip(chr(34))}, {policy}")
             notes.append(f"USER-AGENT 规则 → QX user-agent filter（{value.strip(chr(34))}）")
         elif typ == "URL-REGEX":
-            rewrites.append([value.strip('"'), "response", ("reject", None),
+            if policy != "reject":
+                raise ValueError("URL-REGEX policy cannot be represented as a QX filter: " + policy)
+            rewrites.append([value, "request", ("reject", None),
                              "URL-REGEX REJECT → QX 无 url-regex filter，改用 rewrite reject(404)"])
         else:
             notes.append(f"未映射的规则类型 {typ}: {line.strip()}")
@@ -308,7 +399,7 @@ def convert(show, fname):
         if not m:
             notes.append(f"未识别的 rewrite: {line.strip()[:90]}")
             continue
-        stage, rx, body = m.group("stage"), m.group("re"), m.group("body").strip()
+        stage, rx, body = m.group("stage"), regex_flags(m.group("re"), m.group("flag")), m.group("body").strip()
         m2 = re.match(r"^([\w.]+)\((.*)\)$", body, re.S)
         if not m2:
             notes.append(f"未识别的动作: {body[:60]}")
@@ -327,14 +418,16 @@ def convert(show, fname):
             mm = re.match(r"(\d{3})\s*,\s*\"(.*)\"", arg)
             if mm:
                 code, target = mm.group(1), mm.group(2)
-                # Loon 的 redirect 会自动带原 path/query；QX 必须显式 $1
+                # Preserve the intended Google path/query explicitly; do not assume
+                # identical redirect substitution behavior across clients.
                 if "$1" not in target:
                     rx2 = rx.rstrip("$") if rx.endswith("$") else rx
                     rx2 = re.sub(r"\((?!\?)", "(?:", rx2)          # 原有捕获组改非捕获，避免抢 $1
-                    rx2 = rx2 + "(.*)" + ("$" if rx.endswith("$") else "")
+                    rx2 = rx2 + r"(?=[/?#]|$)(.*)$"
                     target = target + "$1"
-                    rx, note = rx2, (f"redirect({code}) → {code}；已补 (.*) \$1 保留原路径"
-                                     "（Loon 隐式携带，QX 需显式）")
+                    rx, note = rx2, (f"redirect({code}) → {code}；显式保留路径/查询并限制域名边界")
+                    if fname == "Google.lpx":
+                        rx = rx.replace("www.", r"www\.").replace("maps).google", r"maps)\.google")
                 else:
                     note = f"redirect({code}) → {code}"
                 rewrites.append([rx, stage, (code, target), note])
@@ -348,6 +441,14 @@ def convert(show, fname):
             body_ops.setdefault((stage, rx), []).append(js)
         elif act == "response.json.jq":
             expr = unq(arg)
+            if fname == "CoolApk_remove_ads.lpx":
+                corrected = expr.replace('([8639,29349,33006,32557] | index(.entityId) | not)',
+                                         '(.entityId | IN(8639,29349,33006,32557) | not)')
+                corrected = corrected.replace('.entityId? | [944,945,6390] | index(.) | not',
+                                               '.entityId? | IN(944,945,6390) | not')
+                if corrected != expr:
+                    notes.append('修正上游酷安 JQ 数组上下文错误；仅过滤目标 entityId，保留普通内容。')
+                expr = corrected
             body_ops.setdefault((stage, rx), []).append(expr.strip())
         elif act == "response.json.jq_file":
             url = unq(arg)
@@ -360,8 +461,10 @@ def convert(show, fname):
             body_ops.setdefault((stage, rx), []).append(body)
         elif act == "response.json.replace":
             a, v = split_args(arg)
-            ps = split_args(a[1:-1]) if a.startswith("[") else [a]
-            vs = split_args(v[1:-1]) if v.startswith("[") else [v]
+            multi = a.startswith("[")
+            ps = split_args(a[1:-1]) if multi else [a]
+            vs = split_args(v[1:-1]) if multi and v.startswith("[") else [v]
+            if len(ps)!=len(vs):raise ValueError("JSON replacement path/value counts differ")
             frag = " | ".join(f"{jq_path(unq(p))} = {as_jq_value(x)}"
                               for p, x in zip(ps, vs))
             body_ops.setdefault((stage, rx), []).append(frag)
@@ -384,24 +487,39 @@ def convert(show, fname):
         if cm:
             opts = cm.group("opts") or ""
             tag = re.search(r'tag="([^"]*)"', opts)
-            enabled = "false" if re.search(r"enabled\s*=\s*false", opts) else "true"
-            tasks.append(f"{cm.group('expr')} {cm.group('url')}, tag={tag.group(1) if tag else 'task'}, enabled={enabled}")
+            enabled = "false" if re.search(r"enable(?:d)?\s*=\s*false", opts) else "true"
+            tasks.append(f"{unq(cm.group('expr'))} {cm.group('url')}, tag={tag.group(1) if tag else 'task'}, enabled={enabled}")
             continue
         sm = SCRIPT_RE.match(line)
         if not sm:
             notes.append(f"未识别的 script: {line.strip()[:90]}")
             continue
-        stage, rx, url = sm.group("stage"), sm.group("re"), sm.group("url")
+        stage, rx, url = sm.group("stage"), regex_flags(sm.group("re"), sm.group("flag")), sm.group("url")
         opts = sm.group("opts") or ""
-        requires_body = bool(re.search(r"requires[_ ]?body\s*=\s*(true|1)", opts))
+        if re.search(r"enable(?:d)?\s*=\s*false", opts):
+            notes.append("已停用脚本未输出为有效重写：" + url)
+            continue
+        requires_body = bool(re.search(r"requires[_ -]?body\s*=\s*(true|1)", opts))
         if sm.group("args").strip() and sm.group("args").strip() != "":
-            notes.append(f"该脚本带内联参数 {{…}}，QX rewrite 不支持，需改用 $prefs/BoxJs: {url}")
+            raise ValueError("Script parameters need an explicit QX adapter: " + url)
         if stage == "request":
             kind = "script-request-body" if requires_body else "script-request-header"
         else:
-            kind = "script-response-body"
+            kind = "script-response-body" if requires_body else "script-response-header"
         tag = re.search(r'tag="([^"]*)"', opts)
         rewrites.append([rx, stage, (kind, url), f"脚本 {tag.group(1) if tag else ''}".strip()])
+
+    # A user-agent filter cannot represent a URL+UA DIRECT exception. Narrow
+    # the catch-all HTTPDNS reject, then reject the two URLs only for other UAs.
+    if exceptions:
+        exclusions = "|".join("(?:" + rx.lstrip("^") + ")" for rx, ua in exceptions)
+        for item in rewrites:
+            if item[2][0] == "reject" and any(re.search(item[0], re.sub(r"\\(.)", r"\1", rx).lstrip("^").replace(r"\?", "?")) for rx,ua in exceptions):
+                item[0] = "^(?!(?:" + exclusions + "))" + item[0].lstrip("^")
+        for rx, ua in exceptions:
+            ua_regex = re.escape(ua).replace(r"\*", ".*").replace(r"\?", ".")
+            header = r"(?is)^(?!.*(?:^|\r\n)User-Agent:\s*" + ua_regex + r"(?:\r\n|$))"
+            rewrites.append([rx + " " + header, "request", ("reject", None), "URL+UA 精确排除其它 User-Agent"])
 
     # ---- [MitM] ----
     for line in sec.get("MitM", []):
@@ -414,13 +532,17 @@ def convert(show, fname):
         if n not in seen:
             seen.add(n)
             uniq.append(n)
-    return dict(filters=filters, rewrites=rewrites, tasks=tasks, hosts=hosts,
+    unexpected = [n for n in uniq if n.startswith(("未识别", "未映射", "jq_file 未落地", "无法等价"))]
+    if unexpected:
+        raise ValueError(fname + ": " + " / ".join(unexpected))
+    return dict(filters=list(dict.fromkeys(filters)), rewrites=rewrites, tasks=tasks, hosts=hosts,
                 notes=uniq, jq=jq_files)
 
 
 def fmt_rewrite(rw):
     rx, stage, (kind, arg), note = rw
-    line = f"{rx} url {kind}" + (f" {arg}" if arg and kind not in ("reject", "reject-200",
+    operator = "url-and-header" if " " in rx else "url"
+    line = f"{rx} {operator} {kind}" + (f" {arg}" if arg and kind not in ("reject", "reject-200",
                                                                   "reject-img", "reject-dict",
                                                                   "reject-array", "302", "307") else "")
     if kind in ("302", "307"):
@@ -435,91 +557,31 @@ def jq_ok(prog):
 
 
 def main():
-    global SCRIPT_BASE
+    from pathlib import Path
+    sys.path.insert(0, HERE)
+    import build_qx_repo as builder
+    raw = builder.RAW
     if "--script-base" in sys.argv:
-        SCRIPT_BASE = sys.argv[sys.argv.index("--script-base") + 1]
-
-    summary, all_rw, all_ft, all_tk, all_host, problems = [], [], [], [], [], []
-    for show, fname, desc in ENABLED:
-        r = convert(show, fname)
-        rw_lines, notes, shown = [], list(r["notes"]), set()
-        for rw in r["rewrites"]:
-            line, note = fmt_rewrite(rw)
-            rx, stage, (kind, arg), _ = rw
-            if SCRIPT_BASE and arg and str(arg).startswith("https://kelee.one/") and kind.startswith("script"):
-                rest = arg[len("https://kelee.one/"):]
-                line = f"{rx} url {kind} {SCRIPT_BASE}/upstream/kelee.one/{rest}"
-            if kind.startswith("jsonjq"):
-                ok, err = jq_ok(arg[1:-1] if arg.startswith("'") else arg)
-                if not ok:
-                    problems.append((show, arg[:60], err))
-            if note and note not in shown and any(
-                    k in note for k in ("合并", "脚本", "URL-REGEX", "redirect", "reject(")):
-                rw_lines.append(f"# {note}")
-                shown.add(note)
-            rw_lines.append(line)
-        # 校验正则
-        for rw in r["rewrites"]:
-            try:
-                re.compile(rw[0])
-            except re.error as e:
-                problems.append((show, "regex " + rw[0][:50], str(e)))
-
-        slug = re.sub(r"[^\w]+", "_", fname.replace(".lpx", ""))
-        # 单插件 snippet: [rewrite_local] + [mitm]
-        snip = [f"# {show} ← hub.kelee.one/Tool/Loon/Lpx/{fname}",
-                f"# 由 scripts/convert_lpx_to_qx.py 直译；{desc}",
-                "", "[rewrite_local]"]
-        snip += [l for l in rw_lines]
-        if r["hosts"]:
-            snip += ["", "[mitm]", "hostname = " + ", ".join(dict.fromkeys(r["hosts"]))]
-        if notes:
-            snip += ["", "# 注意"] + [f"# - {n}" for n in notes]
-        open(os.path.join(QX, "snippets", slug + ".snippet"), "w", encoding="utf-8").write("\n".join(snip) + "\n")
-
-        if r["filters"]:
-            open(os.path.join(QX, "lists", slug + ".list"), "w", encoding="utf-8").write(
-                "\n".join(r["filters"]) + "\n")
-        for k, v in r["jq"].items():
-            open(os.path.join(QX, "jq", f"{slug}__{k}"), "w", encoding="utf-8").write(v + "\n")
-
-        all_rw += [f"# ── {show} ({fname})"] + [l for l in rw_lines]
-        if r["filters"]:
-            all_ft += [f"# {show}"] + r["filters"]
-        if r["tasks"]:
-            all_tk += [f"# {show}"] + r["tasks"]
-        all_host += r["hosts"]
-        for n in notes:
-            print(f"    ! {show}: {n}")
-        n_rw = sum(1 for l in rw_lines if not l.startswith("#"))
-        summary.append(dict(name=show, file=fname, desc=desc,
-                            rewrite=n_rw, filter=len(r["filters"]),
-                            task=len(r["tasks"]), hosts=r["hosts"], notes=notes))
-
-    open(os.path.join(QX, "merged", "rewrite_local.conf"), "w", encoding="utf-8").write(
-        "# 全部已启用 kelee 插件的 QX 原生重写 —— 粘进 [rewrite_local]\n" + "\n".join(all_rw) + "\n")
-    open(os.path.join(QX, "merged", "filter_local.conf"), "w", encoding="utf-8").write(
-        "# 全部已启用 kelee 插件的 QX 原生分流 —— 粘进 [filter_local]（放在你现有规则之前）\n"
-        + "\n".join(all_ft) + "\n")
-    open(os.path.join(QX, "merged", "task_local.conf"), "w", encoding="utf-8").write(
-        "\n".join(all_tk) + ("\n" if all_tk else "# 本批插件无 task\n"))
-    open(os.path.join(QX, "merged", "mitm.hostname.txt"), "w", encoding="utf-8").write(
-        ", ".join(dict.fromkeys(all_host)) + "\n")
-    json.dump(dict(generated=time.strftime("%Y-%m-%d %H:%M:%S"), summary=summary,
-                   skipped=SKIPPED, problems=problems),
-              open(os.path.join(QX, "report.json"), "w", encoding="utf-8"),
-              ensure_ascii=False, indent=2)
-
-    print(f"{'插件':22s} {'重写':>4s} {'分流':>4s} {'任务':>4s}  MITM")
-    for s in summary:
-        print(f"{s['name']:22s} {s['rewrite']:4d} {s['filter']:4d} {s['task']:4d}  {len(s['hosts'])}")
-    print(f"\n合计: 重写 {len([l for l in all_rw if not l.startswith('#')])} 条, "
-          f"分流 {len([l for l in all_ft if not l.startswith('#')])} 条, "
-          f"hostname {len(dict.fromkeys(all_host))} 个")
-    if problems:
-        print(f"\n!! 校验问题 {len(problems)} 条")
-        for p in problems[:10]:
-            print("  ", p)
+        raw = sys.argv[sys.argv.index("--script-base") + 1].rstrip("/")
+    info, rw, ft, tk = builder.build(QX, raw)
+    # Retire only files produced by the old long-name generator.
+    retired = [f.removesuffix(".lpx") for _,f,_ in ENABLED] + ["ColorfulClouds_remove_ads"]
+    for name in retired:
+        if name.casefold() in {slug.casefold() for slug in builder.SLUGS.values()}:
+            continue  # Google.snippet and google.snippet are the same on default macOS filesystems.
+        for directory,ext in [("snippets",".snippet"),("lists",".list")]:
+            (Path(QX)/directory/(name+ext)).unlink(missing_ok=True)
+    for p in (Path(QX)/"jq").glob("*__*.jq"):
+        p.unlink()
+    builder.write(Path(QX)/"merged/rewrite_local.conf", "# 粘贴到 [rewrite_local]；勿与对应远程重写重复启用。\n"+"\n".join(rw)+"\n")
+    builder.write(Path(QX)/"merged/filter_local.conf", "# 粘贴到 [filter_local]\n"+"\n".join(ft)+"\n")
+    builder.write(Path(QX)/"merged/task_local.conf", "\n".join(tk)+("\n" if tk else "# 本批无任务\n"))
+    builder.write(Path(QX)/"merged/mitm.hostname.txt", ", ".join(info["hosts"])+"\n")
+    builder.write(Path(QX)/"merged/mitm.add.txt", "hostname = "+", ".join(info["hosts"])+"\n")
+    report = dict(generated=time.strftime("%Y-%m-%d %H:%M:%S"), summary=info["rows"], skipped=SKIPPED,
+                  problems=[], limitations=info["limitations"])
+    builder.write(Path(QX)/"report.json", json.dumps(report,ensure_ascii=False,indent=2)+"\n")
+    print(json.dumps({"plugins":len(info["rows"]),"rewrites":sum(r["rewrite"] for r in info["rows"]),"output":QX},ensure_ascii=False))
 
 
 if __name__ == "__main__":

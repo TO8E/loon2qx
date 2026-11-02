@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """校验 qx/ 产物：QX 语法合规、jq 可编译、正则可编译、无 Loon 残留。"""
-import glob, json, os, re, subprocess, sys
+import glob, hashlib, json, os, re, subprocess, sys, urllib.parse
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 QX = os.path.join(ROOT, "qx")
@@ -20,25 +20,27 @@ bad, counts = [], dict(rewrite=0, filter=0, jqhdr=0)
 
 
 def jq_ok(prog):
-    r = subprocess.run(["jq", "-e", prog, "/dev/null"], capture_output=True, text=True)
-    return "error" not in r.stderr.lower(), r.stderr.strip().splitlines()[:1]
+    r = subprocess.run(["jq", "-n", "if false then ("+prog+") else null end"], capture_output=True, text=True)
+    return r.returncode == 0, r.stderr.strip().splitlines()[:1]
 
 
 def check_rewrite(path, line, no):
     global counts
     if line.lower().startswith(("hostname", "hostname =")):
         return                       # 远程 rewrite 源首行 hostname 声明
-    if " url " not in line:
+    marker = ' url-and-header ' if ' url-and-header ' in line else ' url '
+    if marker not in line:
         bad.append(f"{path}:{no} 缺少 ' url ' 分隔: {line[:70]}")
         return
-    pat, rest = line.split(" url ", 1)
+    pat, rest = line.split(marker, 1)
     kind, _, arg = rest.partition(" ")
     kind, arg = kind.strip(), arg.strip()
     counts["rewrite"] += 1
     if kind not in TYPES:
         bad.append(f"{path}:{no} 未知重写类型 {kind}")
     try:
-        re.compile(pat)
+        for pattern in (pat.split(' ',1) if marker==' url-and-header ' else [pat]):
+            re.compile(pattern)
     except re.error as e:
         bad.append(f"{path}:{no} 正则不合法: {e}")
     if kind.startswith("jsonjq"):
@@ -96,6 +98,36 @@ def main():
                     bad.append(f"{os.path.basename(f)} 含段头 {hdr}，QX 远程源会报 invalid line")
     for f in sorted(snips):
         check_file(f, True)
+    info_path = os.path.join(QX,'build-info.json')
+    if os.path.exists(info_path):
+        info=json.load(open(info_path,encoding='utf-8'))
+        for rel,meta in info.get('assets',{}).items():
+            path=os.path.join(QX,rel)
+            if not os.path.isfile(path):
+                bad.append('缺少脚本 '+rel);continue
+            raw=open(path,'rb').read()
+            if '[mirror-stub]' in raw.decode('utf-8',errors='replace'):
+                bad.append('脚本是占位文件 '+rel)
+            if hashlib.sha256(raw).hexdigest()!=meta['sha256']:
+                bad.append('脚本与构建记录不一致 '+rel)
+            checked=subprocess.run(['node','--check',path],capture_output=True,text=True)
+            if checked.returncode:bad.append('JS 语法错误 '+rel)
+        for file in snips:
+            for no,line in enumerate(open(file,encoding='utf-8'),1):
+                if line.lstrip().startswith('#'):continue
+                for url in re.findall(r'https?://[^\s]+',line):
+                    if not url.startswith(info['raw']+'/'):continue
+                    rel=urllib.parse.unquote(url[len(info['raw'])+1:])
+                    if not os.path.isfile(os.path.join(QX,rel)):bad.append(f'{file}:{no} 依赖不存在 {rel}')
+        for filename in ['rewrite_remote.conf','filter_remote.conf']:
+            for no,line in enumerate(open(os.path.join(QX,'config',filename),encoding='utf-8'),1):
+                if not line.strip() or line.startswith('#'):continue
+                url=line.split(',',1)[0]
+                rel=urllib.parse.unquote(url[len(info['raw'])+1:])
+                path=os.path.join(QX,rel)
+                if not os.path.isfile(path):bad.append(f'{filename}:{no} 资源不存在 {rel}')
+                elif filename=='rewrite_remote.conf' and not re.search(r'\surl(?:-and-header)?\s',open(path,encoding='utf-8').read()):
+                    bad.append(f'{filename}:{no} 空重写资源 {rel}')
     for f in sorted(glob.glob(os.path.join(QX, "lists/*.list")) +
                     glob.glob(os.path.join(QX, "base/*.list"))):   # 纯 filter 行, 无段头
         for no, line in enumerate(open(f, encoding="utf-8"), 1):
@@ -107,7 +139,12 @@ def main():
             if len(parts) < 3 or parts[0] not in FILTER_TYPES:
                 bad.append(f"{os.path.basename(f)}:{no} filter 行异常: {s}")
     for f in sorted(glob.glob(os.path.join(QX, "merged/*.conf"))):
-        check_file(f, True)
+        if os.path.basename(f)=='rewrite_local.conf':check_file(f,False)
+        elif os.path.basename(f)=='filter_local.conf':
+            for no,line in enumerate(open(f,encoding='utf-8'),1):
+                if line.strip() and not line.startswith('#'):
+                    parts=[x.strip() for x in line.split(',')]
+                    if len(parts)<3 or parts[0] not in FILTER_TYPES:bad.append(f'{f}:{no} 无效分流')
 
     repf = os.path.join(QX, "report.json")
     if os.path.exists(repf):

@@ -1,3 +1,10 @@
+// Generated QX adapter; original attribution retained below.
+// Storage uses $prefs; empty/invalid responses pass through; only the first $done is emitted.
+((__finish) => {
+let __finished = false;
+const $done = (...args) => { if (!__finished) { __finished = true; __finish(...args); } };
+try {
+if (typeof $response !== 'undefined' && !$response.body) { $done({}); return; }
 /*
 脚本引用https://raw.githubusercontent.com/RuCu6/QuanX/main/Scripts/myBlockAds.js
 */
@@ -97,3 +104,8 @@ switch (isResp) {
 }
 
 $done({ body });
+} catch (__error) {
+console.log('[loon2qx] script passed through: ' + String(__error));
+if (!__finished) $done({});
+}
+})($done);

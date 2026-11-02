@@ -1,3 +1,14 @@
+// Generated QX adapter; original attribution retained below.
+// Storage uses $prefs; empty/invalid responses pass through; only the first $done is emitted.
+((__finish) => {
+let __finished = false;
+const $done = (...args) => { if (!__finished) { __finished = true; __finish(...args); } };
+const $persistentStore = {
+  read: key => $prefs.valueForKey(key) ?? null,
+  write: (value, key) => value == null ? $prefs.removeValueForKey(key) : $prefs.setValueForKey(value, key)
+};
+try {
+if (typeof $response !== 'undefined' && !$response.body) { $done({}); return; }
 /*
 引用地址 https://raw.githubusercontent.com/RuCu6/Loon/main/Scripts/xiaohongshu.js
 */
@@ -406,3 +417,8 @@ function replaceRedIdWithFmz200(obj) {
     });
   }
 }
+} catch (__error) {
+console.log('[loon2qx] script passed through: ' + String(__error));
+if (!__finished) $done({});
+}
+})($done);

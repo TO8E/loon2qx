@@ -1,5 +1,4 @@
-# QQ音乐去广告 分流（来自 Loon 插件 [Rule] 段）
-# 与 base/ 公共规则重复的 2 行已剔除: host, tmead.y.qq.com, reject; host, tmeadbak.y.qq.com, reject
+# QQ音乐去广告：原 Loon [Rule] 分流
 host, adstats.tencentmusic.com, reject
 host, ad.tencentmusic.com, reject
 host, adcdn.tencentmusic.com, reject
@@ -8,4 +7,6 @@ host, adexpo.tencentmusic.com, reject
 host, adclick.tencentmusic.com, reject
 host, mc.tencentmusic.com, reject
 host, monitor.music.qq.com, reject
+host, tmead.y.qq.com, reject
+host, tmeadbak.y.qq.com, reject
 host, tmeadquic.y.qq.com, reject

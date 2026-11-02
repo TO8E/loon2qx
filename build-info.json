@@ -6,26 +6,38 @@
       "fname": "Block_HTTPDNS.lpx",
       "slug": "httpdns",
       "kind": "base",
-      "rewrite": 22,
-      "filter": 146,
+      "rewrite": 24,
+      "filter": 141,
       "hosts": [
         "appconf.mail.163.com",
         "msglb.91160.com",
         "ucdc2-upaas.uc.cn",
         "gw-cn.jiaoliuqu.com",
         "cdn.wup.huya.com",
-        "gslbali.ximalaya.com"
+        "gslbali.ximalaya.com",
+        "ucdc-upaas.uc.cn",
+        "ucdc0-upaas.uc.cn",
+        "ucdc1-upaas.uc.cn",
+        "ucdc3-upaas.uc.cn",
+        "ucdc4-upaas.uc.cn",
+        "ucdc5-upaas.uc.cn",
+        "ucdc6-upaas.uc.cn",
+        "ucdc7-upaas.uc.cn",
+        "ucdc8-upaas.uc.cn",
+        "ucdc9-upaas.uc.cn"
       ],
       "notes": [
         "USER-AGENT 规则 → QX user-agent filter（httpdns*）",
         "USER-AGENT 规则 → QX user-agent filter（httpsdns*）",
         "USER-AGENT 规则 → QX user-agent filter（Httpdns*）",
         "USER-AGENT 规则 → QX user-agent filter（Httpsdns*）",
-        "AND(URL+UA) → 用 user-agent %E5%98%80%E5%97%92%E5%87%BA%E8%A1%8C* 近似",
-        "QX 无 no-resolve 参数，已省略（ip-cidr 直接匹配目的 IP，不影响结果）",
-        "原插件 [MitM] 漏了这些主机，已补: cdn.wup.huya.com, gslbali.ximalaya.com（否则对应 https 重写不会触发）"
+        "URL+UA 放行只豁免指定 HTTPDNS 请求的重写拦截，不再把整个 App 设为直连；QX 不支持按 URL 指定 DIRECT，这些例外的线路继续遵循主配置分流。",
+        "省略无法直接映射的 no-resolve；QX 的解析/匹配流程不保证与 Loon 相同。",
+        "补齐 HTTPS 匹配主机：cdn.wup.huya.com, gslbali.ximalaya.com, ucdc-upaas.uc.cn, ucdc0-upaas.uc.cn, ucdc1-upaas.uc.cn, ucdc3-upaas.uc.cn, ucdc4-upaas.uc.cn, ucdc5-upaas.uc.cn, ucdc6-upaas.uc.cn, ucdc7-upaas.uc.cn, ucdc8-upaas.uc.cn, ucdc9-upaas.uc.cn"
       ],
-      "has_list": true
+      "has_list": true,
+      "snippet": "base/httpdns.snippet",
+      "list": "base/httpdns.list"
     },
     {
       "name": "广告平台拦截器",
@@ -33,20 +45,18 @@
       "slug": "advertisers",
       "kind": "base",
       "rewrite": 4,
-      "filter": 352,
+      "filter": 337,
       "hosts": [
         "video-dsp.pddpic.com",
         "t-dsp.pinduoduo.com",
         "images.pinduoduo.com"
       ],
       "notes": [
-        "AND(关键字+后缀) → host-wildcard 近似: *tnc*.capcutapi.com/zijieapi.com/isnssdk.com/toutiaoapi.com/bytedance.com/snssdk.com/sgsnssdk.com",
-        "AND(关键字+后缀) → host-wildcard 近似: *-ad-*.byteimg.com",
-        "AND(多关键字) → 取最长关键字 host-keyword -normal.zijieapi.com 近似",
-        "QX 无 no-resolve 参数，已省略（ip-cidr 直接匹配目的 IP，不影响结果）",
-        "AND(关键字+后缀) → host-wildcard 近似: *adash*.ut.taobao.com"
+        "省略无法直接映射的 no-resolve；QX 的解析/匹配流程不保证与 Loon 相同。"
       ],
-      "has_list": true
+      "has_list": true,
+      "snippet": "base/advertisers.snippet",
+      "list": "base/advertisers.list"
     },
     {
       "name": "QQ音乐去广告",
@@ -54,10 +64,12 @@
       "slug": "qqmusic",
       "kind": "snippets",
       "rewrite": 0,
-      "filter": 9,
+      "filter": 11,
       "hosts": [],
       "notes": [],
-      "has_list": true
+      "has_list": true,
+      "snippet": null,
+      "list": "lists/qqmusic.list"
     },
     {
       "name": "京东去广告",
@@ -70,7 +82,9 @@
         "api.m.jd.com"
       ],
       "notes": [],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/jd.snippet",
+      "list": null
     },
     {
       "name": "下厨房去广告",
@@ -83,7 +97,9 @@
         "api.xiachufang.com"
       ],
       "notes": [],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/xiachufang.snippet",
+      "list": null
     },
     {
       "name": "淘宝去广告",
@@ -91,7 +107,7 @@
       "slug": "taobao",
       "kind": "snippets",
       "rewrite": 13,
-      "filter": 2,
+      "filter": 6,
       "hosts": [
         "acs.m.taobao.com",
         "heic.alicdn.com",
@@ -100,9 +116,11 @@
         "gw.alicdn.com"
       ],
       "notes": [
-        "原插件 [MitM] 漏了这些主机，已补: gw.alicdn.com（否则对应 https 重写不会触发）"
+        "补齐 HTTPS 匹配主机：gw.alicdn.com"
       ],
-      "has_list": true
+      "has_list": true,
+      "snippet": "snippets/taobao.snippet",
+      "list": "lists/taobao.list"
     },
     {
       "name": "闲鱼去广告",
@@ -116,7 +134,9 @@
         "g-acs.m.goofish.com"
       ],
       "notes": [],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/goofish.snippet",
+      "list": null
     },
     {
       "name": "小红书去广告",
@@ -133,25 +153,11 @@
         "www.xiaohongshu.com"
       ],
       "notes": [
-        "原 AND 规则含 PROTOCOL 条件，QX 无协议匹配；等价做法是在 [general] 加 `udp_drop_list = 443, STUN, QUIC`（你已有 443, STUN）— 原规则: AND, ((PROTOCOL, QUIC), (DOMAIN-SUFFIX, xiaohongshu.com)), REJECT…"
+        "未转换按域名限定的 QUIC 条件：全局 udp_drop_list=QUIC 会扩大到所有应用，不是等价转换；本插件不修改 general，也不拒绝该域名的 TCP 流量。"
       ],
-      "has_list": false
-    },
-    {
-      "name": "彩云天气去广告",
-      "fname": "ColorfulClouds_remove_ads.lpx",
-      "slug": "caiyun",
-      "kind": "snippets",
-      "rewrite": 3,
-      "filter": 3,
-      "hosts": [
-        "biz.cyapi.cn",
-        "starplucker.cyapi.cn",
-        "api.caiyunapp.com",
-        "cdn-w.caiyunapp.com"
-      ],
-      "notes": [],
-      "has_list": true
+      "has_list": false,
+      "snippet": "snippets/xhs.snippet",
+      "list": null
     },
     {
       "name": "12306去广告",
@@ -165,7 +171,9 @@
         "mobile.12306.cn"
       ],
       "notes": [],
-      "has_list": true
+      "has_list": true,
+      "snippet": "snippets/12306.snippet",
+      "list": "lists/12306.list"
     },
     {
       "name": "酷安去广告",
@@ -177,8 +185,12 @@
       "hosts": [
         "api.coolapk.com"
       ],
-      "notes": [],
-      "has_list": false
+      "notes": [
+        "修正上游酷安 JQ 数组上下文错误；仅过滤目标 entityId，保留普通内容。"
+      ],
+      "has_list": false,
+      "snippet": "snippets/coolapk.snippet",
+      "list": null
     },
     {
       "name": "高德地图去广告",
@@ -196,7 +208,9 @@
         "info.amap.com"
       ],
       "notes": [],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/amap.snippet",
+      "list": null
     },
     {
       "name": "掌上英雄联盟去广告",
@@ -209,7 +223,9 @@
         "mlol.qt.qq.com"
       ],
       "notes": [],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/mlol.snippet",
+      "list": null
     },
     {
       "name": "朴朴超市去广告",
@@ -222,7 +238,9 @@
         "j1.pupuapi.com"
       ],
       "notes": [],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/pupu.snippet",
+      "list": null
     },
     {
       "name": "Google搜索重定向",
@@ -233,16 +251,18 @@
       "filter": 0,
       "hosts": [
         "www.google.cn",
-        "www.g.cn",
         "g.cn",
         "google.cn",
+        "www.g.cn",
         "ditu.google.cn",
         "maps.google.cn"
       ],
       "notes": [
-        "原插件 [MitM] 漏了这些主机，已补: www.g.cn, g.cn, google.cn, ditu.google.cn, maps.google.cn（否则对应 https 重写不会触发）"
+        "补齐 HTTPS 匹配主机：g.cn, google.cn, www.g.cn, ditu.google.cn, maps.google.cn"
       ],
-      "has_list": false
+      "has_list": false,
+      "snippet": "snippets/google.snippet",
+      "list": null
     }
   ],
   "hosts": [
@@ -252,6 +272,16 @@
     "gw-cn.jiaoliuqu.com",
     "cdn.wup.huya.com",
     "gslbali.ximalaya.com",
+    "ucdc-upaas.uc.cn",
+    "ucdc0-upaas.uc.cn",
+    "ucdc1-upaas.uc.cn",
+    "ucdc3-upaas.uc.cn",
+    "ucdc4-upaas.uc.cn",
+    "ucdc5-upaas.uc.cn",
+    "ucdc6-upaas.uc.cn",
+    "ucdc7-upaas.uc.cn",
+    "ucdc8-upaas.uc.cn",
+    "ucdc9-upaas.uc.cn",
     "video-dsp.pddpic.com",
     "t-dsp.pinduoduo.com",
     "images.pinduoduo.com",
@@ -269,10 +299,6 @@
     "rec.xiaohongshu.com",
     "so.xiaohongshu.com",
     "www.xiaohongshu.com",
-    "biz.cyapi.cn",
-    "starplucker.cyapi.cn",
-    "api.caiyunapp.com",
-    "cdn-w.caiyunapp.com",
     "ad.12306.cn",
     "mobile.12306.cn",
     "api.coolapk.com",
@@ -285,22 +311,48 @@
     "mlol.qt.qq.com",
     "j1.pupuapi.com",
     "www.google.cn",
-    "www.g.cn",
     "g.cn",
     "google.cn",
+    "www.g.cn",
     "ditu.google.cn",
     "maps.google.cn"
   ],
-  "deduped": {
-    "qqmusic.list": [
-      "host, tmead.y.qq.com, reject",
-      "host, tmeadbak.y.qq.com, reject"
-    ],
-    "taobao.list": [
-      "host, adashx.m.taobao.com, reject",
-      "host, ossgw.alicdn.com, reject",
-      "host, ems.youku.com, reject",
-      "host, hudong.alicdn.com, reject"
-    ]
-  }
+  "assets": {
+    "js/JD/JD_remove_ads.js": {
+      "source": "https://kelee.one/Resource/JavaScript/JD/JD_remove_ads.js",
+      "upstream_sha256": "c029c4151fe73b3a6f660d0933393d1b6afd1969651f01a88d5a357abfdd7cb4",
+      "sha256": "7247af947938900aa218a1230ad522ed20c622d1785098d5a4589d569926fb21",
+      "adapted": true
+    },
+    "js/Taobao/Taobao_remove_ads.js": {
+      "source": "https://kelee.one/Resource/JavaScript/Taobao/Taobao_remove_ads.js",
+      "upstream_sha256": "3ccb2093683d84a0085a24506fb04d3ac87713e8e1bade764711816e8908d903",
+      "sha256": "bc8b142f964988d00c7588c4384f85209b3c9e5eee1c6c8b14482c0573ce2225",
+      "adapted": true
+    },
+    "js/RedPaper/RedPaper_remove_ads.js": {
+      "source": "https://kelee.one/Resource/JavaScript/RedPaper/RedPaper_remove_ads.js",
+      "upstream_sha256": "f7b637c9c738b18f72dd61824e25b06dad7d55553de204daad0dddd675a74f0c",
+      "sha256": "63f159ffd3f379621e9243f2130a984152ed26acb119d9debdf233ff46ebfe6c",
+      "adapted": true
+    },
+    "js/12306/12306_remove_ads.js": {
+      "source": "https://kelee.one/Resource/JavaScript/12306/12306_remove_ads.js",
+      "upstream_sha256": "22a825d8149d952dd9c6c1c5c96fa3f830a0ebba975f8fc402f55ad1f40d4a8a",
+      "sha256": "09e6a9bf1df76ceadb4163b25ff8ba27938ada23f11d335eaf7476a5960c1a4c",
+      "adapted": true
+    },
+    "js/PuPuMall/PuPuMall_remove_ads.js": {
+      "source": "https://kelee.one/Resource/JavaScript/PuPuMall/PuPuMall_remove_ads.js",
+      "upstream_sha256": "76659d365b0da3eef1ef54cde44254f9d951799138af52a3edeea2e29a43f83f",
+      "sha256": "46ebf1407aa3902c4ee880e73649f61334b754951497a48a844c2a77d5274278",
+      "adapted": true
+    }
+  },
+  "deduped": {},
+  "limitations": [
+    "未等价转换小红书按域名限定的 QUIC 拦截；未修改全局 UDP 设置。",
+    "HTTPDNS 的 URL+UA 例外保留不拦截效果，路由由主配置决定。",
+    "本地模拟和语法检查不能代替手机 QX 实测。"
+  ]
 }
