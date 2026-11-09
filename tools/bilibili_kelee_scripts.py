@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline build of pinned Kelee scripts. Requires Python 3 and esbuild (build only).
+"""Offline build of pinned Kelee scripts. Requires Python 3, Node and esbuild (build only).
 Usage: python3 tools/bilibili_kelee_scripts.py [--out-dir js/BilibiliKelee]
 No downloads, user arguments, BoxJS, or persistent settings at runtime.
 """
@@ -31,7 +31,7 @@ def replace(text, old, new, count=1):
     return text.replace(old, new)
 
 def emit(out: Path) -> dict:
-    """Build request.js, response.js, json.js under out; return assets metadata."""
+    """Build response, reply/video specializations, live JSON and retired request URL."""
     out = Path(out)
     sources = {}
     for name, expected in PINNED.items():
@@ -77,18 +77,27 @@ $done(output);
     banner += '// Fixed options; unary gRPC only; unsupported transports fail open.\n'
     banner += '/* Inlined fflate 0.8.2 (MIT), Copyright (c) 2023 Arjun Barrett.\n' + sources['fflate-LICENSE'] + '*/\n'
     with tempfile.TemporaryDirectory() as tmp:
-        for mode in ['request', 'response', 'json']:
+        core_file=Path(tmp)/'core.txt'
+        core_file.write_text(core)
+        split_dir=Path(tmp)/'split'
+        split_result=subprocess.run(['node','--expose-internals',str(ROOT/'tools/bilibili_split.cjs'),
+            str(core_file),str(ROOT/'tools/bilibili_kelee_runtime.js'),str(split_dir)],
+            check=True,capture_output=True,text=True)
+        split_info=json.loads(split_result.stdout)
+        for mode in ['request', 'response', 'json', 'reply', 'video']:
             name = mode + '.js'
-            original = f'Bilibili_{"proto_" if mode != "json" else ""}{mode}_kokoryh.js'
+            origin_mode='response' if mode in ('reply','video') else mode
+            original = f'Bilibili_{"proto_" if origin_mode != "json" else ""}{origin_mode}_kokoryh.js'
             entry = Path(tmp) / (mode + '.js')
             if mode == 'request':
                 # Retired asset URL for users who refreshed scripts but still have
                 # the old snippet cached. NOT a supported request optimizer.
                 content = '// Retired request replay: synchronous pass-through only.\n$done({});\n'
             else:
+                payload=(split_dir/(mode+'.js')).read_text() if mode in split_info else core+'\n'+runtime
                 content = live if mode == 'json' else (
                     f'import {{gunzipSync as qxGunzipSync}} from {json.dumps(str(UPSTREAM / "fflate-0.8.2.mjs"))};\n'
-                    + core + '\n' + runtime)
+                    + payload)
             entry.write_text(content)
             result = subprocess.run(['esbuild', str(entry), '--bundle', '--format=iife',
                 '--target=safari14', '--minify-whitespace', '--legal-comments=none', '--log-level=error'],
@@ -105,13 +114,16 @@ $done(output);
                 'upstream_sha256': PINNED[original],
                 'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
                 'adapted': True, 'path': str(path),
-                'support': 'retired-url-synchronous-passthrough-only' if mode == 'request' else 'binary-unary-gRPC-if-interceptable' if mode == 'response' else 'live-JSON',
+                'support': 'retired-url-synchronous-passthrough-only' if mode == 'request' else 'live-JSON' if mode == 'json' else 'binary-unary-gRPC-if-interceptable',
                 'subscribed': mode != 'request',
                 'minimum_quantumult_x': '1.5.2 build 854 (resource format; not HTTP/2 support)',
                 'network_replay': False,
                 'runtime_external_dependencies': [],
-                'build_dependencies': ['python3', 'esbuild'],
+                'build_dependencies': ['python3', 'node (bundled Acorn via --expose-internals)', 'esbuild'],
             }
+            if mode in split_info:
+                manifest['outputs'][name]['specialized_routes']=split_info[mode]['routes']
+                manifest['outputs'][name]['retained_descriptors']=split_info[mode]['retained_descriptors']
     return manifest['outputs']
 
 def main():

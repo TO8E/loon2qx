@@ -171,21 +171,21 @@ class BilibiliKeleeTests(unittest.TestCase):
         self.assertEqual(self.parsed['filters'], SOURCE_FILTERS)
         self.assertCountEqual(self.parsed['hosts'], HOSTS)
 
-    def test_21_rewrites_and_no_request_interception(self):
+    def test_23_rewrites_and_no_request_interception(self):
         actions = [action for _, action in self.rows]
-        self.assertEqual(len(actions), 21)
+        self.assertEqual(len(actions), 23)
         self.assertEqual(sum(a.startswith('jsonjq-response-body ') for a in actions), 11)
         self.assertEqual(actions.count('reject-dict'), 2)
         self.assertEqual(sum(a.startswith('script-echo-response ') for a in actions), 6)
-        self.assertEqual(sum(a.startswith('script-response-body ') for a in actions), 2)
+        self.assertEqual(sum(a.startswith('script-response-body ') for a in actions), 4)
         request = [a for a in actions if 'request' in a.split()[0]]
         self.assertEqual(request, [])
         self.assertFalse(any('/request.js' in action for action in actions))
-        for filename in ('response.js', 'json.js'):
+        for filename in ('response.js', 'json.js', 'reply.js', 'video.js'):
             self.assertEqual(sum(a.endswith('/js/BilibiliKelee/' + filename) for a in actions), 1)
         self.assertEqual(len(self.parsed['mocks']), 6)
         self.assertEqual(len(self.parsed['jq']), 2)
-        self.assertEqual(len(set(self.parsed['rewrites'])), 21)
+        self.assertEqual(len(set(self.parsed['rewrites'])), 23)
 
     def test_view_and_reply_are_response_only_and_cannot_replay_requests(self):
         for endpoint in ('bilibili.app.viewunite.v1.View/View',
@@ -195,13 +195,14 @@ class BilibiliKeleeTests(unittest.TestCase):
             for host in ('grpc.biliapi.net', 'app.bilibili.com'):
                 url = 'https://' + host + '/' + endpoint
                 matched = [action for pattern, action in self.rows if re.search(pattern, url)]
-                self.assertEqual(matched, ['script-response-body '+RAW+'/js/BilibiliKelee/response.js'])
+                filename='reply.js' if '.Reply/' in endpoint else 'video.js'
+                self.assertEqual(matched, ['script-response-body '+RAW+'/js/BilibiliKelee/'+filename])
         self.assertNotIn('/request.js', '\n'.join(self.published()))
         text = (REPO/'snippets/bilibili.snippet').read_text()
         self.assertNotIn('优化评论区加载异常=true', text)
         self.assertNotIn('请求优化开启', text)
         self.assertIn('optimizeRequest=false', text)
-        for filename in ('request.js','response.js','json.js','mock.js'):
+        for filename in ('request.js','response.js','json.js','mock.js','reply.js','video.js'):
             source = (REPO/'js/BilibiliKelee'/filename).read_text()
             for token in ('$task','fetch(', 'setTimeout','setInterval','Promise'):
                 self.assertNotIn(token, source, filename)
@@ -442,8 +443,26 @@ class BilibiliKeleeTests(unittest.TestCase):
                     or 'enable=${sponsorBlock}' in line or 'enable=${optimizeRequest}' in line):
                 continue
             expected.append('(?i)' + match[2])
-        self.assertEqual([pattern for pattern, _ in self.rows], expected)
-        self.assertEqual(len(expected), 21)
+        # All non-protobuf rules remain byte-for-byte; only the one broad
+        # protobuf response regex is partitioned into three disjoint groups.
+        split=[pattern for pattern,action in self.rows if action.endswith(('/reply.js','/video.js','/response.js'))]
+        original=next(pattern for pattern in expected if 'SearchAll' in pattern and 'MainList' in pattern)
+        self.assertEqual([pattern for pattern,_ in self.rows if pattern not in split],
+                         [pattern for pattern in expected if pattern!=original])
+        self.assertEqual(len(expected),21)
+        paths=['bilibili.main.community.reply.v1.Reply/MainList',
+               'bilibili.app.dynamic.v2.Dynamic/DynAll','bilibili.app.show.v1.Popular/Index',
+               'bilibili.app.playurl.v1.PlayURL/PlayView','bilibili.app.playerunite.v1.Player/PlayViewUnite',
+               'bilibili.polymer.app.search.v1.Search/SearchAll','bilibili.community.service.dm.v1.DM/DmView',
+               'bilibili.pgc.gateway.player.v2.PlayURL/PlayView']
+        paths += ['bilibili.app.'+version+'.v1.View/'+method for version in ('view','viewunite')
+                  for method in ('View','ViewProgress','RelatesFeed','AIRelateAsync')]
+        for host in ('grpc.biliapi.net','app.bilibili.com','app.biliapi.com','evil.example'):
+            for rpc in paths+['bilibili.future.X/Unknown']:
+                url='https://'+host+'/'+rpc
+                for candidate in (url,url.upper(),url+'?x=1',url+'/extra',url.replace('https:','http:')):
+                    self.assertEqual(sum(bool(re.search(pattern,candidate)) for pattern in split),
+                                     int(bool(re.search(original,candidate))),candidate)
 
     def test_rejects_have_only_two_known_endpoints_and_no_catch_all(self):
         targets = [
@@ -506,7 +525,7 @@ class BilibiliKeleeTests(unittest.TestCase):
                 with self.assertRaises(ValueError, msg='Pinned Bilibili filter inventory must fail closed'):
                     K.parse_rules(changed, RAW)
 
-    def test_publication_eight_inline_filters_and_21_source_rewrites(self):
+    def test_publication_eight_inline_filters_and_23_source_rewrites(self):
         lines = self.published()
         filters = [line for line in lines if ' url ' not in line and not line.startswith('hostname')]
         self.assertCountEqual(filters, FILTERS)
@@ -515,7 +534,7 @@ class BilibiliKeleeTests(unittest.TestCase):
         hostlines = [line for line in lines if line.startswith('hostname')]
         self.assertEqual(len(hostlines), 1)
         self.assertCountEqual([x.strip() for x in hostlines[0].split('=', 1)[1].split(',')], HOSTS)
-        self.assertEqual(len(lines), 8 + 21 + 1)
+        self.assertEqual(len(lines), 8 + 23 + 1)
 
     def test_publication_manifest_fixed_settings_one_resource_and_provenance(self):
         manifest = json.loads((REPO / 'build-info.json').read_text(encoding='utf-8'))
@@ -523,7 +542,7 @@ class BilibiliKeleeTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         row = rows[0]
         expected = dict(slug='bilibili', snippet='snippets/bilibili.snippet',
-                        rewrite=21, filter=8, list=None, has_list=False,
+                        rewrite=23, filter=8, list=None, has_list=False,
                         embedded_filter=True, settings=SETTINGS,
                         source='https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx',
                         snapshot='tools/upstream/bilibili-kelee/Bilibili_remove_ads.lpx')
@@ -569,7 +588,7 @@ class BilibiliKeleeTests(unittest.TestCase):
             for token in forbidden:
                 with self.subTest(file=path.name, token=token):
                     self.assertNotIn(token, text)
-        self.assertEqual(len(rewrites(self.published())), 21)
+        self.assertEqual(len(rewrites(self.published())), 23)
 
     def test_publication_shared_scope_reports_no_advertisers_for_bilibili(self):
         scope = json.loads((REPO / 'config/shared-scope.json').read_text(encoding='utf-8'))

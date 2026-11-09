@@ -129,8 +129,20 @@ def parse_rules(text, raw):
             skipped_optimization += 1
             continue
         scripts.append((name,allowed[name]))
-        rewrites.append(rx+' url script-'+match['stage']+'-body '+raw+'/js/BilibiliKelee/'+allowed[name])
-    if skipped_sponsor!=2 or skipped_optimization!=1 or len(scripts)!=2 or len(rewrites)!=21:
+        if name=='Bilibili_proto_response_kokoryh.js':
+            video_part=r'view(unite)?\.v1\.View\/(View|ViewProgress|RelatesFeed|AIRelateAsync)|'
+            reply_part=r'|main\.community\.reply\.v1\.Reply\/MainList'
+            if rx.count(video_part)!=1 or rx.count(reply_part)!=1:
+                raise ValueError('Bilibili response route split changed; review scope')
+            prefix=r'(?i)^https:\/\/(grpc\.biliapi\.net|app\.bilibili\.com)\/bilibili\.'
+            partitions=[(prefix+r'main\.community\.reply\.v1\.Reply\/MainList$', 'reply.js'),
+                        (prefix+r'app\.view(unite)?\.v1\.View\/(View|ViewProgress|RelatesFeed|AIRelateAsync)$', 'video.js'),
+                        (rx.replace(video_part,'').replace(reply_part,''),'response.js')]
+            rewrites += [pattern+' url script-response-body '+raw+'/js/BilibiliKelee/'+file
+                         for pattern,file in partitions]
+        else:
+            rewrites.append(rx+' url script-'+match['stage']+'-body '+raw+'/js/BilibiliKelee/'+allowed[name])
+    if skipped_sponsor!=2 or skipped_optimization!=1 or len(scripts)!=2 or len(rewrites)!=23:
         raise ValueError('Source rule count/disabled sponsor changed; review')
     hosts=[]
     for line in sections.get('MitM',[]):

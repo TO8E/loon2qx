@@ -28,13 +28,19 @@ function qxBytes(value) {
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
   throw Error('Binary body unavailable'); // Never reinterpret a UTF-8 body as protobuf.
 }
-function qxBuffer(bytes) { return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength); }
+// Build only for compressed responses; uncompressed RPCs pay no table setup.
+let qxCRCTable;
 function qxCRC(bytes) {
-  let crc = 0xffffffff;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let k = 0; k < 8; k++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  if (!qxCRCTable) {
+    qxCRCTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let value = n;
+      for (let k = 0; k < 8; k++) value = (value >>> 1) ^ (value & 1 ? 0xedb88320 : 0);
+      qxCRCTable[n] = value >>> 0;
+    }
   }
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ qxCRCTable[(crc ^ bytes[i]) & 255];
   return (crc ^ 0xffffffff) >>> 0;
 }
 function qxGunzip(bytes) {
@@ -64,7 +70,8 @@ function qxFrame(bytes) {
   const framed = new Uint8Array(bytes.length + 5);
   new DataView(framed.buffer).setUint32(1, bytes.length);
   framed.set(bytes, 5);
-  return qxBuffer(framed); // The QX API requires ArrayBuffer, not Uint8Array.
+  // Fresh allocation: exact size, offset zero; no slice/copy is necessary.
+  return framed.buffer; // The QX API requires ArrayBuffer, not Uint8Array.
 }
 function qxCleanHeaders(headers) {
   const result = {};

@@ -8,7 +8,12 @@ const vm = require('node:vm');
 const zlib = require('node:zlib');
 const root = path.resolve(__dirname, '..');
 const dir = process.argv[2] || path.join(root, 'js/BilibiliKelee');
-const scripts = Object.fromEntries(['request', 'response', 'json'].map(k => [k, fs.readFileSync(path.join(dir, k + '.js'), 'utf8')]));
+const scripts = Object.fromEntries(['request', 'response', 'json', 'reply', 'video'].map(k => [k, fs.readFileSync(path.join(dir, k + '.js'), 'utf8')]));
+function responseSource(route) {
+  if (/^bilibili\.main\.community\.reply\.v1\.Reply\/MainList$/i.test(route)) return scripts.reply;
+  if (/^bilibili\.app\.view(?:unite)?\.v1\.View\//i.test(route)) return scripts.video;
+  return scripts.response;
+}
 const U = b => new Uint8Array(b);
 const ab = b => U(b).buffer;
 const concat = (...a) => Buffer.concat(a.map(b => Buffer.from(b)));
@@ -96,11 +101,20 @@ async function run(mode, route, body, options = {}) {
     $task: {fetch: async req => { fetches.push(req); if (!options.fetch) throw Error('Unexpected network'); return options.fetch(req, fetches.length); }},
     $done: result => { calls.push(result); settle(result); }};
   if (mode === 'json') ctx.$response.body = body;
-  vm.runInNewContext(scripts[mode], ctx, {timeout: 3000});
+  vm.runInNewContext(mode === 'response' ? responseSource(route) : scripts[mode], ctx, {timeout: 3000});
   let timer;
   const result = await Promise.race([completed, new Promise((_, reject) => { timer = setTimeout(() => reject(Error('Missing $done')), 10000); })]);
   clearTimeout(timer); await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls.length, 1, 'exactly one $done'); assert.equal(logs.length, 0, 'logLevel=off');
+  assert.equal(fetches.length,0,'no replay or active network work');
+  if (mode === 'response') {
+    const referenceCalls=[];
+    vm.runInNewContext(scripts.response,{...ctx,$done:value=>referenceCalls.push(value)},{timeout:3000});
+    assert.equal(referenceCalls.length,1);
+    const normalize=value=>({keys:Object.keys(value).sort(),headers:JSON.parse(JSON.stringify(value.headers||{})),
+      body:value.body,bytes:value.bodyBytes?Buffer.from(value.bodyBytes).toString('hex'):null});
+    assert.deepEqual(normalize(result),normalize(referenceCalls[0]),'specialized vs full protobuf output');
+  }
   return {result, fetches, calls};
 }
 const tests = [];
@@ -110,6 +124,30 @@ const response = (rpc, payload, opts) => run('response', rpc, ab(frame(payload))
 
 test('Reply: purify pinned ads, keep normal comments and unknown wire fields', async () => assertReply(outputPayload((await response(RPC.reply, reply)).result)));
 test('View: cm/elec/modules/headline/relates and nested unknown data', async () => assertView(outputPayload((await response(RPC.view, view)).result)));
+test('Legacy RelatesFeed preserves normal recommendations and unknown paging', async () => {
+  const normal = msg(b(1, 'normal-video'), unknown);
+  const paging = b(240, 'opaque-next-cursor');
+  const body = msg(b(1, normal), b(1, msg(b(28, 'ad'), unknown)), paging, unknown);
+  const out = outputPayload((await response('bilibili.app.view.v1.View/RelatesFeed', body)).result);
+  assert.deepEqual(values(out, 1), [normal]); assert.deepEqual(first(out, 240), first(paging, 240)); assertUnknown(out);
+});
+test('Unified RelatesFeed preserves ordinary cards, order and unknown paging', async () => {
+  const normal = msg(v(1, 1), b(12, unknown), unknown), future = msg(v(1, 999), unknown);
+  const paging = b(240, 'opaque-next-cursor');
+  const adCards = [4, 5, 6, 7, 11].map(type => b(1, v(1, type)));
+  const body = msg(b(1, normal), ...adCards, b(1, future), b(1, msg(v(1, 1), b(11, 'ad'))),
+    b(1, msg(v(1, 1), b(12, b(6, 'promotion')))), paging, unknown);
+  const out = outputPayload((await response('bilibili.app.viewunite.v1.View/RelatesFeed', body)).result);
+  assert.deepEqual(values(out, 1), [normal, future]); assert.deepEqual(first(out, 240), first(paging, 240)); assertUnknown(out);
+});
+test('AIRelateAsync preserves normal modules and paging while removing target ads', async () => {
+  const body = msg(b(1, 'ad'), b(2, msg(...modules.map(m => b(1, m)), unknown)), b(240, 'opaque-next'), unknown);
+  const out = outputPayload((await response('bilibili.app.viewunite.v1.View/AIRelateAsync', body)).result);
+  assert.equal(values(out, 1).length, 0); assert.equal(first(out, 240).toString(), 'opaque-next'); assertUnknown(out);
+  const container = first(out, 2); assertUnknown(container);
+  const kept = values(container, 1); assert.deepEqual(kept.map(item => first(item, 1)), [3n, 28n, 999n]);
+  assertUnknown(kept[2]); const cards = values(first(kept[1], 22), 1); assert.equal(cards.length, 1); assertUnknown(cards[0]);
+});
 test('DynAll: hide is fixed even on iPad; keep normal future cards', async () => {
   const p = outputPayload((await response(RPC.dyn, dyn)).result); assert.equal(values(p, 2).length, 0); assert.equal(values(p, 3).length, 0);
   const list = values(first(p, 1), 1); assert.equal(list.length, 1); assertUnknown(list[0]); assertUnknown(p);
@@ -208,7 +246,7 @@ test('No runtime parameter, persistence, Loon utility, or SponsorBlock entry poi
   for (const source of Object.values(scripts)) for (const banned of ['$argument', '$persistentStore', '$prefs', '$httpClient', '$utils', 'bsbsb.top', '/chronos/', 'DmSegMobile', 'skipSegments']) assert(!source.includes(banned), banned);
 });
 test('All generated assets forbid network calls and timers', () => {
-  for (const name of ['request', 'response', 'json', 'mock']) {
+  for (const name of ['request', 'response', 'json', 'mock', 'reply', 'video']) {
     const source = fs.readFileSync(path.join(dir, name + '.js'), 'utf8');
     for (const token of ['$task', '$httpClient', 'fetch(', 'XMLHttpRequest', 'WebSocket', 'setTimeout', 'setInterval', 'Promise'])
       assert(!source.includes(token), `${name} unexpectedly contains ${token}`);

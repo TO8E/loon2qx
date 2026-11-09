@@ -278,7 +278,7 @@
       "fname": "Bilibili_remove_ads.lpx",
       "slug": "bilibili",
       "kind": "snippets",
-      "rewrite": 21,
+      "rewrite": 23,
       "filter": 8,
       "hosts": [
         "grpc.biliapi.net",
@@ -457,13 +457,14 @@
       "runtime_external_dependencies": [],
       "build_dependencies": [
         "python3",
+        "node (bundled Acorn via --expose-internals)",
         "esbuild"
       ]
     },
     "js/BilibiliKelee/response.js": {
       "source": "https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_response_kokoryh.js",
       "upstream_sha256": "e4a8426cffbfca85c78286126a10813051a2d1aeed018119bbabe3db5da85728",
-      "sha256": "c93a13763395200b0c4ecad82eadbfc377c0bccbadc7782c80f7665dcd249a35",
+      "sha256": "ef3031ef2fc670e7b306e075476472b6e3b13fbc4afd82eb6dbbb8b0207d1e2b",
       "adapted": true,
       "support": "binary-unary-gRPC-if-interceptable",
       "subscribed": true,
@@ -472,6 +473,7 @@
       "runtime_external_dependencies": [],
       "build_dependencies": [
         "python3",
+        "node (bundled Acorn via --expose-internals)",
         "esbuild"
       ]
     },
@@ -487,8 +489,55 @@
       "runtime_external_dependencies": [],
       "build_dependencies": [
         "python3",
+        "node (bundled Acorn via --expose-internals)",
         "esbuild"
       ]
+    },
+    "js/BilibiliKelee/reply.js": {
+      "source": "https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_response_kokoryh.js",
+      "upstream_sha256": "e4a8426cffbfca85c78286126a10813051a2d1aeed018119bbabe3db5da85728",
+      "sha256": "d86fd65b2b1bf6da995635c02a0f72937eead8917d405ee0c189174be25981fe",
+      "adapted": true,
+      "support": "binary-unary-gRPC-if-interceptable",
+      "subscribed": true,
+      "minimum_quantumult_x": "1.5.2 build 854 (resource format; not HTTP/2 support)",
+      "network_replay": false,
+      "runtime_external_dependencies": [],
+      "build_dependencies": [
+        "python3",
+        "node (bundled Acorn via --expose-internals)",
+        "esbuild"
+      ],
+      "specialized_routes": [
+        "bilibili.main.community.reply.v1.Reply/MainList"
+      ],
+      "retained_descriptors": 5
+    },
+    "js/BilibiliKelee/video.js": {
+      "source": "https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_response_kokoryh.js",
+      "upstream_sha256": "e4a8426cffbfca85c78286126a10813051a2d1aeed018119bbabe3db5da85728",
+      "sha256": "6179495d7fbb6d0f88679827975497d92bc275513f60423192e7a7c228565864",
+      "adapted": true,
+      "support": "binary-unary-gRPC-if-interceptable",
+      "subscribed": true,
+      "minimum_quantumult_x": "1.5.2 build 854 (resource format; not HTTP/2 support)",
+      "network_replay": false,
+      "runtime_external_dependencies": [],
+      "build_dependencies": [
+        "python3",
+        "node (bundled Acorn via --expose-internals)",
+        "esbuild"
+      ],
+      "specialized_routes": [
+        "bilibili.app.view.v1.View/View",
+        "bilibili.app.view.v1.View/ViewProgress",
+        "bilibili.app.view.v1.View/RelatesFeed",
+        "bilibili.app.viewunite.v1.View/ViewProgress",
+        "bilibili.app.viewunite.v1.View/RelatesFeed",
+        "bilibili.app.viewunite.v1.View/View",
+        "bilibili.app.viewunite.v1.View/AIRelateAsync"
+      ],
+      "retained_descriptors": 21
     },
     "js/BilibiliKelee/mock.js": {
       "source": "https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx",
@@ -498,7 +547,7 @@
     }
   },
   "unique": {
-    "rewrites": 149,
+    "rewrites": 151,
     "filters": 53
   },
   "deduped": {
