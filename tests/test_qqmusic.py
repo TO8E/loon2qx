@@ -1,4 +1,5 @@
-"""QQMusic domain-only rewrite resource; no phone import is simulated."""
+"""QQMusic mixed resource regression; no phone import is simulated."""
+import re
 import json
 from pathlib import Path
 import sys
@@ -21,13 +22,17 @@ def active(text):
 class QQMusicTests(unittest.TestCase):
     def test_plugin_and_legacy_list_have_identical_14_domains(self):
         snippet = (ROOT/'snippets/qqmusic.snippet').read_text()
-        rules = active(snippet)
+        all_rules = active(snippet)
+        rules = [line for line in all_rules if line.startswith('host, ')]
+        rewrites = [line for line in all_rules if ' url ' in line]
+        self.assertEqual(rewrites, [r'^http:\/\/ad\.tencentmusic\.com\/ url reject'])
+        self.assertEqual(len(all_rules), 15)
         self.assertEqual(rules, active((ROOT/'lists/qqmusic.list').read_text()))
         self.assertEqual(len(rules), 14)
         self.assertEqual(len(set(rules)), 14)
         self.assertTrue(all(line.startswith('host, ') and line.endswith(', reject') for line in rules))
         self.assertNotIn('hostname', snippet)
-        self.assertFalse(any(' url ' in line or 'script-' in line for line in rules))
+        self.assertFalse(any('script-' in line for line in all_rules))
         self.assertIn('#!name=QQ音乐去广告', snippet)
         self.assertIn('#!qx_version=1.5.2-854', snippet)
         self.assertIn('https://kelee.one/Tool/Loon/Lpx/QQMusic_remove_ads.lpx', snippet)
@@ -37,7 +42,8 @@ class QQMusicTests(unittest.TestCase):
         result = C.convert('QQ音乐', 'QQMusic_remove_ads.lpx', text=source)
         self.assertEqual(len(result['filters']), 11)
         self.assertFalse(result['rewrites'] or result['hosts'] or result['tasks'])
-        published = active((ROOT/'snippets/qqmusic.snippet').read_text())
+        published = [line for line in active((ROOT/'snippets/qqmusic.snippet').read_text())
+                     if line.startswith('host, ')]
         self.assertEqual(published[3:], result['filters'])
         self.assertEqual(published[:3], ['host, tmeadcomm.y.qq.com, reject',
                                        'host, stat.y.qq.com, reject',
@@ -51,7 +57,7 @@ class QQMusicTests(unittest.TestCase):
         self.assertTrue((ROOT/'lists/qqmusic.list').is_file())
         row = next(item for item in json.loads((ROOT/'build-info.json').read_text())['rows']
                    if item['slug']=='qqmusic')
-        self.assertEqual((row['rewrite'], row['filter'], row['hosts']), (0,14,[]))
+        self.assertEqual((row['rewrite'], row['filter'], row['hosts']), (1,14,[]))
         self.assertEqual(row['snippet'], 'snippets/qqmusic.snippet')
         self.assertEqual(row['list'], 'lists/qqmusic.list')
         self.assertTrue(row['embedded_filter'] and row['alternative_list'])
@@ -67,18 +73,32 @@ class QQMusicTests(unittest.TestCase):
                 generated,rw,ft,tk = B.emit(out,'QQ音乐去广告','QQMusic_remove_ads.lpx',
                                            'qqmusic','snippets',B.RAW,{},supplement)
             self.assertEqual(generated, row)
-            self.assertFalse(rw or tk)
+            self.assertEqual(rw, [r'^http:\/\/ad\.tencentmusic\.com\/ url reject'])
+            self.assertFalse(tk)
             self.assertEqual(len(ft),14)
             for rel in ('snippets/qqmusic.snippet','lists/qqmusic.list'):
                 self.assertEqual((out/rel).read_bytes(), (ROOT/rel).read_bytes())
             B.remove_retired(out)
             self.assertTrue((out/'snippets/qqmusic.snippet').exists())
 
-    def test_validator_accepts_domain_only_nonempty_resource(self):
+    def test_validator_accepts_mixed_resource_syntax_not_phone_import(self):
         with patch.object(K,'bad',[]), patch.object(K,'counts',dict(rewrite=0,filter=0,jqhdr=0)):
             K.check_file(str(ROOT/'snippets/qqmusic.snippet'))
             self.assertEqual(K.bad, [])
-            self.assertEqual(K.counts, dict(rewrite=0,filter=14,jqhdr=0))
+            self.assertEqual(K.counts, dict(rewrite=1,filter=14,jqhdr=0))
+
+    def test_compatibility_rewrite_is_http_only_and_already_domain_blocked(self):
+        lines = active((ROOT/'snippets/qqmusic.snippet').read_text())
+        self.assertIn('host, ad.tencentmusic.com, reject', lines)
+        self.assertEqual(lines[0], r'^http:\/\/ad\.tencentmusic\.com\/ url reject')
+        pattern = lines[0].split(' url ',1)[0]
+        for url in ['http://ad.tencentmusic.com/', 'http://ad.tencentmusic.com/ad?x=1']:
+            self.assertIsNotNone(re.search(pattern,url), url)
+        for url in ['https://ad.tencentmusic.com/', 'http://ad.tencentmusic.com.evil.test/',
+                    'http://child.ad.tencentmusic.com/', 'http://adXtencentmusicXcom/',
+                    'http://music.y.qq.com/', 'http://example.com/?next=http://ad.tencentmusic.com/']:
+            self.assertIsNone(re.search(pattern,url),url)
+        self.assertFalse(any(line.startswith('hostname') or 'script-' in line for line in lines))
 
 
 if __name__ == '__main__':

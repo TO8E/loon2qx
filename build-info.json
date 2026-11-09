@@ -6,13 +6,14 @@
       "fname": "QQMusic_remove_ads.lpx",
       "slug": "qqmusic",
       "kind": "snippets",
-      "rewrite": 0,
+      "rewrite": 1,
       "filter": 14,
       "hosts": [],
       "notes": [
         "已并入本 App 的广告/统计域名配套；来源和分配见 config/shared-scope.json。",
-        "原作者：可莉；本资源仅含域名拦截，无 URL 重写、脚本或 MitM。",
-        "QX 1.5.2(854)+ 可添加到重写资源；与 lists/qqmusic.list 二选一，不要重复订阅。"
+        "原作者：可莉；14 条域名拦截 + 1 条针对已拦截域名的 HTTP 兼容重写，无脚本或 MitM。",
+        "纯域名版在用户 QX 1.90 中报内容无效；此混合资源为兼容修正版，待手机导入验证。",
+        "添加到重写资源，关闭资源解析器；与 lists/qqmusic.list 二选一，不要重复订阅。"
       ],
       "has_list": true,
       "snippet": "snippets/qqmusic.snippet",
@@ -423,7 +424,7 @@
     }
   },
   "unique": {
-    "rewrites": 145,
+    "rewrites": 146,
     "filters": 46
   },
   "deduped": {

@@ -148,10 +148,10 @@ def main():
                     content=open(path,encoding='utf-8').read()
                     active=[s.strip() for s in content.splitlines()
                             if s.strip() and not s.lstrip().startswith(('#',';'))]
-                    has_rule=any(' url ' in s or ' url-and-header ' in s
-                                 or re.fullmatch(r'host(?:-suffix)?,\s*[^,\s]+,\s*reject',s)
-                                 for s in active)
-                    if not has_rule:bad.append(f'{filename}:{no} 空重写资源 {rel}')
+                    # Conservative publishing guard after QX 1.90 rejected a
+                    # domain-only snippet. This is not a native parser test.
+                    has_rule=any(' url ' in s or ' url-and-header ' in s for s in active)
+                    if not has_rule:bad.append(f'{filename}:{no} 缺少 URL 重写（仅域名资源未经导入验证） {rel}')
     for f in sorted(glob.glob(os.path.join(QX, "lists/*.list")) +
                     glob.glob(os.path.join(QX, "base/*.list"))):   # 纯 filter 行, 无段头
         for no, line in enumerate(open(f, encoding="utf-8"), 1):
