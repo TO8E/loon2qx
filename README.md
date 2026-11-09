@@ -15,7 +15,7 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 - 将 `config/filter_remote.conf` 添加到 `[filter_remote]`，保留各资源本来的策略。12306 含广告域名 DIRECT 配套规则，不能给所有资源统一指定 `force-policy=reject`。
 - 远程重写使用裸规则及 `hostname = …`，不含配置段头。其主机由 QX 合并；`config/mitm.txt` 是供本地合并时使用的清单。
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
-- QQ 音乐默认使用 `snippets/qqmusic.snippet`：14 条域名拦截 + 1 条同范围 HTTP 兼容重写，无脚本或 MitM；纯域名旧版收到用户导入失败反馈，当前修正版待手机验证。与旧 `lists/qqmusic.list` **二选一**，不要重复订阅。
+- QQ 音乐默认使用 `snippets/qqmusic.snippet`：14 条域名拦截 + 1 条同范围 HTTP 原样请求头占位，无脚本或 MitM；纯域名旧版收到用户导入失败反馈，当前修正版待手机验证。与旧 `lists/qqmusic.list` **二选一**，不要重复订阅。
 - 除 QQ 音乐的两种替代格式外，同一 App 若同时提供 `.snippet` 和 `.list`，应配套启停。新版 QX 的重写资源支持域名规则；中国联通和 QQ 音乐各用一个文件即可（建议 QX 1.5.2(854)+），其余应用保持原结构。
 - B 站使用 `snippets/bilibili.snippet` + `lists/bilibili.list`；小黑盒使用 `snippets/xiaoheihe.snippet`。
 - 从旧配置迁移时，删除 `[rewrite_local]` 中 `BEGIN BILIBILI_KOKORYH_QX` 到 `END BILIBILI_KOKORYH_QX` 的整块，以及两条小黑盒重写，再添加相应远程订阅。只需迁移一次，无须覆盖整份主配置。
@@ -89,7 +89,9 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 `snippets/qqmusic.snippet` 为**重写资源兼容修正版**，关闭资源解析器；不需要脚本、`hostname` 或 MitM。
 保留可莉原插件的 11 个精确广告域名，加原有 3 个广告/统计补充域名（来自 `BlockAdvertisers.lpx`），合计 14 条域名拒绝。
 2026-11-09 用户报告纯域名旧版在 **QX 1.90、解析器关闭**时提示“内容无效”。官方只明确支持重写资源附带分流，不能据此保证纯分流片段也能导入；此前的保证已撤回。
-本次额外加入 `^http:\/\/ad\.tencentmusic\.com\/ url reject` 并置于域名规则前，使资源实际包含 URL 重写。它只覆盖**已经被原域名规则拒绝**的 `ad.tencentmusic.com` HTTP 请求，不增加域名或 HTTPS 解密范围。
+占位规则按用户选择改为 `^http:\/\/ad\.tencentmusic\.com\/ url request-header ^([\s\S]*)$ request-header $1`，置于域名规则前。请求头整体捕获后原样替换，**占位本身不执行拒绝、不修改请求头，也不强制 DIRECT**。
+它只匹配**已被原域名规则拒绝**的 `ad.tencentmusic.com` HTTP 请求，原 14 条域名拒绝保持不变；不增加域名、外部 JS 或 HTTPS 解密范围。域名层拦截生效时，这条占位通常不会实际执行。
+写法依据 [QX 官方 sample.conf](https://github.com/crossutility/Quantumult-X/blob/master/sample.conf) 的 `request-header` 捕获替换语法。本地样例仅验证原样替换和匹配范围，不能代替 QX 原生导入/执行测试。
 这是一项针对疑似资源类型识别问题的兼容修复，**尚未在用户手机确认导入成功，未确证 QX 内部拒绝原因**。
 旧 `lists/qqmusic.list` 继续保留，14 条域名规则与新版相同，依然可作为分流资源使用。**两种格式二选一**；不要叠加启用。
 默认清单使用插件版，不重复订阅旧列表。统计包含新增 1 条兼容重写，不重复计入替代列表中的域名。

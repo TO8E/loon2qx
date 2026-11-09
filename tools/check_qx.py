@@ -11,7 +11,7 @@ TYPES = {"reject", "reject-200", "reject-img", "reject-dict", "reject-array",
          "302", "307", "jsonjq-response-body", "jsonjq-request-body",
          "script-request-header", "script-request-body",
          "script-response-header", "script-response-body",
-         "script-echo-response", "echo-response"}
+         "script-echo-response", "echo-response", "request-header"}
 FILTER_TYPES = {"host", "host-suffix", "host-keyword", "host-wildcard", "ip-cidr",
                 "ip6-cidr", "geoip", "ip-asn", "user-agent"}
 LOON_LEFTOVER = ["${url}", "script(", "reject_dict", "reject_img", "response.json.",
@@ -43,6 +43,15 @@ def check_rewrite(path, line, no):
             re.compile(pattern)
     except re.error as e:
         bad.append(f"{path}:{no} 正则不合法: {e}")
+    if kind == 'request-header':
+        expression, delimiter, replacement = arg.partition(' request-header ')
+        if not delimiter or not expression or not replacement:
+            bad.append(f'{path}:{no} request-header 缺少正则或替换表达式')
+        else:
+            try:
+                re.compile(expression)
+            except re.error as error:
+                bad.append(f'{path}:{no} request-header 正则不合法: {error}')
     if kind.startswith("jsonjq"):
         if not (arg.startswith("'") and arg.endswith("'")) and not arg.startswith('"'):
             bad.append(f"{path}:{no} jq 未加引号")
