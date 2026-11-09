@@ -1,0 +1,17 @@
+#!name=B站临时诊断：仅保留MitM和域名规则
+#!desc=仅用于排查，不是去广告正式版。启用前停用正式B站资源；保持MitM开启。真实B站接口不做URL重写、jq或脚本处理。测试后删除本资源并恢复正式版。
+#!qx_version=1.5.2-854
+# Diagnostic baseline: TO8E/loon2qx ebe188651101f2e0324fc849dc95c1ba83b756bf
+# Main plugin source: https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx
+# Exactly the same 8 domain rules and 5 MITM hosts as the production resource.
+# Import-compatibility placeholder, reserved .invalid host; no Bilibili URL matches.
+^http:\/\/qx-bilibili-diagnostic\.invalid\/ url reject
+host, httpdns.bilivideo.com, reject
+host, api.biliapi.com, reject
+host, app.biliapi.com, reject
+host, api.biliapi.net, reject
+host, app.biliapi.net, reject
+host-wildcard, *stun*.chat.bilibili.com, reject
+host-wildcard, *tracker*.chat.bilibili.com, reject
+host-wildcard, *p2p*.chat.bilibili.com, reject
+hostname = grpc.biliapi.net, app.bilibili.com, api.bilibili.com, api.live.bilibili.com, line3-h5-mobile-api.biligame.com
