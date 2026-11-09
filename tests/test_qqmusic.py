@@ -25,7 +25,7 @@ class QQMusicTests(unittest.TestCase):
         all_rules = active(snippet)
         rules = [line for line in all_rules if line.startswith('host, ')]
         rewrites = [line for line in all_rules if ' url ' in line]
-        self.assertEqual(rewrites, [r'^http:\/\/ad\.tencentmusic\.com\/ url request-header ^([\s\S]*)$ request-header $1'])
+        self.assertEqual(rewrites, [r'^http:\/\/ad\.tencentmusic\.com1\/ url reject'])
         self.assertEqual(len(all_rules), 15)
         self.assertEqual(rules, active((ROOT/'lists/qqmusic.list').read_text()))
         self.assertEqual(len(rules), 14)
@@ -73,7 +73,7 @@ class QQMusicTests(unittest.TestCase):
                 generated,rw,ft,tk = B.emit(out,'QQ音乐去广告','QQMusic_remove_ads.lpx',
                                            'qqmusic','snippets',B.RAW,{},supplement)
             self.assertEqual(generated, row)
-            self.assertEqual(rw, [r'^http:\/\/ad\.tencentmusic\.com\/ url request-header ^([\s\S]*)$ request-header $1'])
+            self.assertEqual(rw, [r'^http:\/\/ad\.tencentmusic\.com1\/ url reject'])
             self.assertFalse(tk)
             self.assertEqual(len(ft),14)
             for rel in ('snippets/qqmusic.snippet','lists/qqmusic.list'):
@@ -87,35 +87,31 @@ class QQMusicTests(unittest.TestCase):
             self.assertEqual(K.bad, [])
             self.assertEqual(K.counts, dict(rewrite=1,filter=14,jqhdr=0))
 
-    def test_compatibility_rewrite_is_http_only_and_already_domain_blocked(self):
+    def test_compatibility_rewrite_only_matches_http_com1_placeholder(self):
         lines = active((ROOT/'snippets/qqmusic.snippet').read_text())
         self.assertIn('host, ad.tencentmusic.com, reject', lines)
-        self.assertEqual(lines[0], r'^http:\/\/ad\.tencentmusic\.com\/ url request-header ^([\s\S]*)$ request-header $1')
+        self.assertEqual(lines[0], r'^http:\/\/ad\.tencentmusic\.com1\/ url reject')
         pattern = lines[0].split(' url ',1)[0]
-        for url in ['http://ad.tencentmusic.com/', 'http://ad.tencentmusic.com/ad?x=1']:
+        for url in ['http://ad.tencentmusic.com1/', 'http://ad.tencentmusic.com1/ad?x=1']:
             self.assertIsNotNone(re.search(pattern,url), url)
-        for url in ['https://ad.tencentmusic.com/', 'http://ad.tencentmusic.com.evil.test/',
-                    'http://child.ad.tencentmusic.com/', 'http://adXtencentmusicXcom/',
-                    'http://music.y.qq.com/', 'http://example.com/?next=http://ad.tencentmusic.com/']:
+        for url in ['http://ad.tencentmusic.com/', 'https://ad.tencentmusic.com/',
+                    'http://ad.tencentmusic.com/ad?x=1', 'https://ad.tencentmusic.com1/',
+                    'http://ad.tencentmusic.com1.evil.test/', 'http://child.ad.tencentmusic.com1/',
+                    'http://adXtencentmusicXcom1/', 'http://music.y.qq.com/',
+                    'http://example.com/?next=http://ad.tencentmusic.com1/']:
             self.assertIsNone(re.search(pattern,url),url)
         self.assertFalse(any(line.startswith('hostname') or 'script-' in line for line in lines))
 
-    def test_placeholder_preserves_headers_and_never_forces_direct(self):
+    def test_placeholder_skips_all_real_domains_and_has_no_header_or_direct_action(self):
         lines = active((ROOT/'snippets/qqmusic.snippet').read_text())
-        action = lines[0].split(' url ',1)[1]
-        self.assertTrue(action.startswith('request-header '))
-        expression, replacement = action[len('request-header '):].split(' request-header ',1)
-        self.assertEqual(expression, r'^([\s\S]*)$')
-        self.assertEqual(replacement, '$1')
-        # A local regex simulation, NOT QX's native replacement engine.
-        fixtures = ['', 'GET / HTTP/1.1\r\nHost: ad.tencentmusic.com\r\n\r\n',
-                    'POST /ad HTTP/1.1\r\nX-Keep: $1 \\ slash\r\nX-Keep: twice\r\n\r\n',
-                    'GET /?x=1 HTTP/1.1\nHost: ad.tencentmusic.com\nX-Text: 测试\n',
-                    'HEAD / HTTP/1.1\r\nHost: ad.tencentmusic.com']
-        for headers in fixtures:
-            with self.subTest(headers=headers):
-                self.assertEqual(re.sub(expression, lambda match: match.group(1), headers), headers)
-        self.assertFalse(any('direct' in line.lower() or line.endswith(' url reject') for line in lines))
+        pattern, action = lines[0].split(' url ',1)
+        self.assertEqual(action, 'reject')
+        for line in lines[1:]:
+            host = line.split(',')[1].strip()
+            for scheme in ('http', 'https'):
+                url = f'{scheme}://{host}/ad?x=1'
+                self.assertIsNone(re.search(pattern,url),url)
+        self.assertFalse(any('direct' in line.lower() or 'request-header' in line for line in lines))
 
     def test_validator_rejects_incomplete_header_replacement(self):
         with patch.object(K,'bad',[]), patch.object(K,'counts',dict(rewrite=0,filter=0,jqhdr=0)):
