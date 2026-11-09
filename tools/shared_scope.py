@@ -27,7 +27,7 @@ PROFILES = {
                      r'amdc\.m\.taobao\.com', r'47\.246\.103\.9', r'47\.246\.103\.10',
                      r'59\.82\.113\.10', r'59\.82\.113\.219']]]),
         dict(apps=['哔哩哔哩'], purpose='B 站解析服务',
-             basis='用户已有 B 站增强；仅保留明确的 bilivideo HTTPDNS 域名，不替换其重写。',
+             basis='仅保留明确的 bilivideo HTTPDNS 域名；B 站重写由可莉版固定配置独立生成。',
              rules=domains('httpdns.bilivideo.com')),
     ],
     'BlockAdvertisers.lpx': [

@@ -274,26 +274,54 @@
       "list": null
     },
     {
-      "name": "B站增强",
-      "fname": null,
+      "name": "哔哩哔哩去广告",
+      "fname": "Bilibili_remove_ads.lpx",
       "slug": "bilibili",
       "kind": "snippets",
-      "rewrite": 18,
-      "filter": 1,
+      "rewrite": 22,
+      "filter": 8,
       "hosts": [
         "grpc.biliapi.net",
         "app.bilibili.com",
         "api.bilibili.com",
-        "api.live.bilibili.com"
+        "api.live.bilibili.com",
+        "line3-h5-mobile-api.biligame.com"
       ],
       "notes": [
-        "已并入本 App 的 HTTPDNS/广告域名配套；来源和分配见 config/shared-scope.json。",
-        "完整远程 B 站增强；启用后删除或停用旧的本地 B 站重写块，避免重复。",
-        "来源：https://raw.githubusercontent.com/kokoryh/Script/master/Surge/module/bilibili.sgmodule"
+        "原作者：kokoryh（可莉收录）；固定配置，无需用户参数或 BoxJS。",
+        "最常访问=hide；移除评论区置顶广告=true；优化评论区加载异常=true；日志=off。",
+        "不迁移空降助手：不含 DmSegMobile 请求脚本或 bsbsb.top 分流。",
+        "域名拦截已合并；仅纳入明确属于 B 站的公共补充，停用其它 B 站规则。",
+        "评论加载优化已开启兼容重放，但无已核实的强制 HTTP/2/trailers 等价接口；推荐 QX build 934+。",
+        "二进制脚本已适配 QX bodyBytes；本地测试不能代替手机 HTTP/2/gRPC 实测。"
       ],
-      "has_list": true,
+      "has_list": false,
       "snippet": "snippets/bilibili.snippet",
-      "list": "lists/bilibili.list",
+      "list": null,
+      "source": "https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx",
+      "snapshot": "tools/upstream/bilibili-kelee/Bilibili_remove_ads.lpx",
+      "upstream_sha256": "8db02264fa15b0271ccad40eaa5c14ea3f40864aa5af501c7a64941620e6b0e5",
+      "embedded_filter": true,
+      "qx_min_version": "1.5.2-854",
+      "settings": {
+        "displayUpList": "hide",
+        "purifyComment": true,
+        "optimizeRequest": true,
+        "sponsorBlock": false,
+        "logLevel": "off"
+      },
+      "jq_sources": [
+        {
+          "source": "https://kelee.one/Resource/JQLang/Bilibili/tab_Bilibili_remove_ads.jq",
+          "snapshot": "tools/upstream/bilibili-kelee/tab_Bilibili_remove_ads.jq",
+          "sha256": "69b4b2129be425dfa26fe7f06786a8710129c2ce5702fdcd36d90f842aea4dec"
+        },
+        {
+          "source": "https://kelee.one/Resource/JQLang/Bilibili/mine_Bilibili_remove_ads.jq",
+          "snapshot": "tools/upstream/bilibili-kelee/mine_Bilibili_remove_ads.jq",
+          "sha256": "e99d5ea7038cb973996a04fde3cd9a2840dbba6dcfbfb437c00cb383f53fda2f"
+        }
+      ],
       "supplements": [
         {
           "source": "https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx",
@@ -381,6 +409,7 @@
     "app.bilibili.com",
     "api.bilibili.com",
     "api.live.bilibili.com",
+    "line3-h5-mobile-api.biligame.com",
     "api.xiaoheihe.cn",
     "m.client.10010.com",
     "img.client.10010.com"
@@ -416,17 +445,61 @@
       "sha256": "46ebf1407aa3902c4ee880e73649f61334b754951497a48a844c2a77d5274278",
       "adapted": true
     },
-    "js/Bilibili/bilibili_json.js": {
-      "source": "https://raw.githubusercontent.com/kokoryh/Script/master/js/bilibili_json.js",
-      "upstream_sha256": "70cbd724e2c3b243f7f5d1fb2b793063807864a71ca646da17573b5cebae1cda",
-      "sha256": "e4043f950a3ebcf76f8d1af58838039814065d4bdfe93bc92b79c327ff19ad12",
+    "js/BilibiliKelee/request.js": {
+      "source": "https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_request_kokoryh.js",
+      "upstream_sha256": "1b7e1d51efd960b10a22ea322630e72ecee646f2fdaad8a097c9e530fde1a857",
+      "sha256": "db2108e96bdf3516709ca71967f4a58d84ccbf55e306d4c78ef35ba1c008c10f",
       "adapted": true,
-      "purpose": "保留动态/关注底栏，兼容名称变化；未知底栏结构保留原样。"
+      "support": "partial-best-effort-replay: no forced-H2/native-trailers",
+      "minimum_quantumult_x": "1.5.0 build 824",
+      "auto_cookie_false_requires_build": 934,
+      "recommended_quantumult_x_build": 934,
+      "runtime_external_dependencies": [],
+      "build_dependencies": [
+        "python3",
+        "esbuild"
+      ]
+    },
+    "js/BilibiliKelee/response.js": {
+      "source": "https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_proto_response_kokoryh.js",
+      "upstream_sha256": "e4a8426cffbfca85c78286126a10813051a2d1aeed018119bbabe3db5da85728",
+      "sha256": "7b6d1b2057f4b6413cde801f853a7c8734598859df34936fa86ab71c46dafc9b",
+      "adapted": true,
+      "support": "binary-unary-gRPC",
+      "minimum_quantumult_x": "1.5.0 build 824",
+      "auto_cookie_false_requires_build": 934,
+      "recommended_quantumult_x_build": 934,
+      "runtime_external_dependencies": [],
+      "build_dependencies": [
+        "python3",
+        "esbuild"
+      ]
+    },
+    "js/BilibiliKelee/json.js": {
+      "source": "https://kelee.one/Resource/JavaScript/Bilibili/Bilibili_json_kokoryh.js",
+      "upstream_sha256": "521a3974d1a485daf5750bc7b986ee5b64325480ed80da2e7d90265f4ad57090",
+      "sha256": "eef32cd0d59601a537a8eb76f5a047e609ae81bebdf88a72d1fa15e5f60150ef",
+      "adapted": true,
+      "support": "live-JSON",
+      "minimum_quantumult_x": "1.5.0 build 824",
+      "auto_cookie_false_requires_build": 934,
+      "recommended_quantumult_x_build": 934,
+      "runtime_external_dependencies": [],
+      "build_dependencies": [
+        "python3",
+        "esbuild"
+      ]
+    },
+    "js/BilibiliKelee/mock.js": {
+      "source": "https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx",
+      "upstream_sha256": "8db02264fa15b0271ccad40eaa5c14ea3f40864aa5af501c7a64941620e6b0e5",
+      "sha256": "1bd48e3d9cca5451a1d11e09a0e68e67b21994c121f6ca16a933e0a8b87b9a73",
+      "adapted": true
     }
   },
   "unique": {
-    "rewrites": 146,
-    "filters": 46
+    "rewrites": 150,
+    "filters": 53
   },
   "deduped": {
     "rewrites": 10,

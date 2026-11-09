@@ -70,7 +70,6 @@ SKIPPED = {
     "Script-Hub": ("Script-Hub.lpx", "kelee 插件只是官方 script-hub.js 的 Loon 外壳；QX 官方 script-hub.qx.conf 即原生"),
     "一汽大众去广告": (None, "kelee 无对应插件（zirawell 原生）"),
     "AdGuard": (None, "kelee 无对应插件（yfamilys 原生）"),
-    "哔哩哔哩增强": (None, "已有 kokoryh 本地转换版，非作者官方 QX 配置；本批不重复转换"),
     "平安好车主去广告": (None, "配置中 enabled=false"),
     "拼多多去广告": (None, "配置中 enabled=false"),
     "Speedtest-备选": (None, "配置中 enabled=false"),

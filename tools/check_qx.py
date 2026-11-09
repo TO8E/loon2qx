@@ -97,7 +97,7 @@ def check_file(path, sectioned=True):
                 # Deliberately do not accept IP rules or non-reject policies here.
                 parts = [p.strip() for p in s.split(',')]
                 counts['filter'] += 1
-                if (len(parts) != 3 or parts[0] not in {'host', 'host-suffix'}
+                if (len(parts) != 3 or parts[0] not in {'host', 'host-suffix', 'host-wildcard'}
                         or not parts[1] or parts[2] != 'reject'):
                     bad.append(f'{path}:{no} 不支持的合并域名拦截: {s}')
             else:
@@ -122,6 +122,12 @@ def main():
     if os.path.exists(info_path):
         info=json.load(open(info_path,encoding='utf-8'))
         for row in info.get('rows', []):
+            for item in row.get('jq_sources', []):
+                source_path=os.path.join(QX,item['snapshot'])
+                if not os.path.isfile(source_path):
+                    bad.append('缺少 jq 上游快照 '+item['snapshot'])
+                elif hashlib.sha256(open(source_path,'rb').read()).hexdigest()!=item['sha256']:
+                    bad.append('jq 上游快照与构建记录不一致 '+item['snapshot'])
             if row.get('snapshot'):
                 source_path=os.path.join(QX,row['snapshot'])
                 if not os.path.isfile(source_path):

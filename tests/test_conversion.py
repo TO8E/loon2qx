@@ -112,8 +112,11 @@ URL-REGEX, "^http:\/\/\d+\.\d+\.\d+\.\d+\/d\?", REJECT
             self.assertFalse(blocked(url),url)
 
     def test_scoped_lists_keep_selected_services_without_unrelated_rules(self):
-        def rules(name):return [line for line in (REPO/'lists'/name).read_text().splitlines()
-                                if line.strip() and not line.startswith('#')]
+        def rules(name):
+            path=REPO/'snippets/bilibili.snippet' if name=='bilibili.list' else REPO/'lists'/name
+            return [line for line in path.read_text().splitlines()
+                    if line.strip() and not line.startswith('#')
+                    and (name!='bilibili.list' or line.startswith(('host,','host-wildcard,')))]
         all_rules=rules('jd.list')+rules('bilibili.list')+rules('qqmusic.list')+rules('taobao.list')
         for filename,host in [('jd.list','dns.jd.com'),('bilibili.list','httpdns.bilivideo.com'),
                               ('taobao.list','httpdns-api.aliyuncs.com')]:
@@ -215,14 +218,16 @@ response if ${url} ~= /^https:\/\/a\.test/i then script("https://kelee.one/Resou
         for slug in ['bilibili','xiaoheihe']:
             self.assertIn('/snippets/'+slug+'.snippet,',remote)
         bili=(REPO/'snippets/bilibili.snippet').read_text().splitlines()
-        self.assertTrue(bili[0].startswith('hostname = '))
+        self.assertTrue(any(line.startswith('hostname = ') for line in bili))
         rules=[line for line in bili if ' url ' in line and not line.startswith('#')]
-        for url,script in [
-            ('https://app.bilibili.com/x/resource/show/tab/v2?fixture=1','/TO8E/loon2qx/main/js/Bilibili/bilibili_json.js'),
-            ('https://grpc.biliapi.net/bilibili.app.dynamic.v2.Dynamic/DynAll','/kokoryh/Script/master/js/bilibili.protobuf.js')]:
-            matched=[line for line in rules if re.search(line.split(' url ',1)[0],url)]
-            self.assertEqual(len(matched),1,url)
-            self.assertTrue(matched[0].endswith(script),url)
+        tab=[line for line in rules if re.search(line.split(' url ',1)[0],
+             'https://app.bilibili.com/x/resource/show/tab/v2?fixture=1')]
+        self.assertEqual(len(tab),1)
+        self.assertIn(' url jsonjq-response-body ',tab[0])
+        matched=[line for line in rules if re.search(line.split(' url ',1)[0],
+                 'https://grpc.biliapi.net/bilibili.app.dynamic.v2.Dynamic/DynAll')]
+        self.assertEqual(len(matched),1)
+        self.assertTrue(matched[0].endswith('/TO8E/loon2qx/main/js/BilibiliKelee/response.js'))
         self.assertNotIn('__RAW_BASE__','\n'.join(bili))
 
     def test_xiaoheihe_kelee_enabled_and_not_skipped(self):

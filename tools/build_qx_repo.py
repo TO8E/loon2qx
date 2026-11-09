@@ -29,6 +29,7 @@ def write(path, text):
 def remove_retired(out):
     for name in ['snippets/caiyun.snippet','lists/caiyun.list','js/ColorfulClouds/ColorfulClouds_remove_ads.js',
                  'snippets/ColorfulClouds_remove_ads.snippet','lists/ColorfulClouds_remove_ads.list',
+                 'js/Bilibili/bilibili_json.js','lists/bilibili.list',
                  'base/httpdns.list','base/httpdns.snippet','base/advertisers.list','base/advertisers.snippet']:
         (out/name).unlink(missing_ok=True)
     directory=out/'js/ColorfulClouds'
@@ -52,22 +53,10 @@ def supplements():
                 target['sources'].append(dict(source=report['source'],purpose=group['purpose']))
     return per_app,reports
 
-def bili_navigation_asset(out,assets):
-    tool_dir=Path(__file__).resolve().parent
-    original=(tool_dir/'upstream/bilibili_json.js').read_text(encoding='utf-8')
-    helper=(tool_dir/'bilibili-navigation.js').read_text(encoding='utf-8')
-    old='const e=["首页","动态","我的"];i.data.bottom=i.data.bottom.filter((i=>e.includes(i.name)))'
-    if original.count(old)!=1:raise ValueError('Bilibili upstream navigation changed; review patch before rebuilding')
-    patched=original.replace(old,'i.data.bottom=qxBilibiliBottomTabs(i.data.bottom)')
-    source='https://raw.githubusercontent.com/kokoryh/Script/master/js/bilibili_json.js'
-    relative='js/Bilibili/bilibili_json.js'
-    adapted=C.adapt_script('// Upstream: '+source+'\n'+helper+'\n'+patched,relative)
-    write(out/relative,adapted)
-    assets[relative]=dict(source=source,upstream_sha256=hashlib.sha256(original.encode()).hexdigest(),
-                         sha256=hashlib.sha256(adapted.encode()).hexdigest(),adapted=True,
-                         purpose='保留动态/关注底栏，兼容名称变化；未知底栏结构保留原样。')
-
 def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
+    if slug=='bilibili':
+        from build_bilibili_kelee import emit as emit_bilibili
+        return emit_bilibili(out,raw,assets,supplement)
     external=EXTERNAL_PLUGINS.get(filename)
     source_text=None
     if external:
@@ -82,14 +71,6 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
     result['rewrites']=supplement.get('rewrites',[])+result['rewrites']
     result['filters']=list(dict.fromkeys(supplement.get('filters',[])+result['filters']))
     native=[]
-    native_file={'bilibili':'bilibili-enhance.snippet'}.get(slug)
-    if native_file:
-        template=(Path(__file__).resolve().parent/native_file).read_text(encoding='utf-8')
-        for line in template.splitlines():
-            if line.startswith('hostname = '):result['hosts'] += [h.strip() for h in line.split('=',1)[1].split(',')]
-            elif line.strip() and not line.startswith('#'):
-                if ' url ' not in line:raise ValueError('Invalid native rewrite source: '+native_file)
-                native.append(line.replace('__RAW_BASE__',raw))
     if slug=='qqmusic':
         # Import compatibility workaround: the domain-only snippet was rejected
         # as invalid by a user on QX 1.90 with resource parser disabled.
@@ -104,9 +85,6 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
     if supplement:
         notes.append('已并入本 App 的广告/统计域名配套；来源和分配见 config/shared-scope.json。'
                      if slug=='qqmusic' else '已并入本 App 的 HTTPDNS/广告域名配套；来源和分配见 config/shared-scope.json。')
-    if slug=='bilibili':
-        notes.append('完整远程 B 站增强；启用后删除或停用旧的本地 B 站重写块，避免重复。')
-        notes.append('来源：https://raw.githubusercontent.com/kokoryh/Script/master/Surge/module/bilibili.sgmodule')
     if slug=='xiaoheihe':
         notes.append('原作者：可莉；忠实保留上游 jq 逻辑（删除大写 PROTOCOL，无外部 JS）。')
     if embedded:
@@ -184,7 +162,7 @@ def build(out,raw=RAW):
     rows=[];assets={};rewrites=[];filters=[];tasks=[];hosts=[]
     per_app,scope=supplements()
     selected=[(n,f,SLUGS[f],'snippets') for n,f,_ in C.ENABLED]+[
-        ('B站增强',None,'bilibili','snippets')]
+        ('哔哩哔哩去广告','Bilibili_remove_ads.lpx','bilibili','snippets')]
     selected += [(meta['name'],filename,meta['slug'],'snippets') for filename,meta in EXTERNAL_PLUGINS.items()]
     emitted={slug for _,_,slug,_ in selected}
     if set(per_app)-emitted:raise ValueError('Shared rules have unassigned app targets: '+str(set(per_app)-emitted))
@@ -199,7 +177,6 @@ def build(out,raw=RAW):
         seen_rewrites.update(rw);seen_filters.update(ft)
         tasks += tk
     hosts=list(dict.fromkeys(hosts))
-    bili_navigation_asset(out,assets)
     for name in ['updatable.jq','search_poi_detail.jq']:
         source=Path(C.JQSRC)/'Amap'/name
         if not source.is_file():raise ValueError('Missing jq source: '+str(source))

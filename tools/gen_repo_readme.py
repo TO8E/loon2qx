@@ -11,9 +11,9 @@ scope_table='\n'.join('| '+', '.join(g['apps'])+' | '+g['purpose']+' | '+str(len
                       for source in scope.values() for g in source['groups'])
 text=f'''# loon2qx
 
-将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 {sum(bool(r['fname']) and not r.get('source') for r in rows)} 个应用/工具插件转换为 Quantumult X 配置。
-另提供 loon.103516.xyz 中国联通插件转换版和 B 站增强远程资源。
-HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插件转换版。
+将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 {sum(bool(r['fname']) and (not r.get('source') or r['source'].startswith('https://kelee.one/')) for r in rows)} 个应用/工具插件转换为 Quantumult X 配置。
+另提供 loon.103516.xyz 中国联通插件转换版。
+HTTPDNS、广告域名配套已并入各 App；小黑盒和 B 站已切换为可莉插件转换版。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
 独立 App 文件合计 {sum(r['rewrite'] for r in rows)} 条重写、{sum(r['filter'] for r in rows)} 条分流；去重后仍为 {info['unique']['rewrites']} 条重写、{info['unique']['filters']} 条分流。
@@ -28,7 +28,7 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
 - QQ 音乐默认使用 `snippets/qqmusic.snippet`：14 条域名拦截 + 1 条同范围 HTTP 原样请求头占位，无脚本或 MitM；纯域名旧版收到用户导入失败反馈，当前修正版待手机验证。与旧 `lists/qqmusic.list` **二选一**，不要重复订阅。
 - 除 QQ 音乐的两种替代格式外，同一 App 若同时提供 `.snippet` 和 `.list`，应配套启停。新版 QX 的重写资源支持域名规则；中国联通和 QQ 音乐各用一个文件即可（建议 QX 1.5.2(854)+），其余应用保持原结构。
-- B 站使用 `snippets/bilibili.snippet` + `lists/bilibili.list`；小黑盒使用 `snippets/xiaoheihe.snippet`。
+- B 站只使用 `snippets/bilibili.snippet`，内含对应域名/HTTPDNS 配套；停用原 `lists/bilibili.list` 与其它 B 站重写。小黑盒使用 `snippets/xiaoheihe.snippet`。
 - 从旧配置迁移时，删除 `[rewrite_local]` 中 `BEGIN BILIBILI_KOKORYH_QX` 到 `END BILIBILI_KOKORYH_QX` 的整块，以及两条小黑盒重写，再添加相应远程订阅。只需迁移一次，无须覆盖整份主配置。
 
 不再生成或订阅 `base/httpdns.*`、`base/advertisers.*`。更新旧配置时删除这些公共订阅，按下表补上相关 App 的分流。
@@ -100,17 +100,43 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 已订阅此仓库版本的用户刷新原资源即可；不要与 Zirawell 或其它小黑盒重写同时启用。
 完整构建时，将最新源放入本地镜像的 `Tool/Loon/Lpx/XiaoHeiHe_remove_ads.lpx`；回归测试使用仓库中的源快照。
 
-## B 站增强底栏修正
+## B 站：只保留可莉版固定配置
 
-`snippets/bilibili.snippet` 提供完整 kokoryh Bilibili 增强重写，其中 JSON 处理使用 `js/Bilibili/bilibili_json.js` 适配版。
-原作者的底栏筛选只认“首页、动态、我的”，会丢弃名称改为“关注”或其它语言的入口。
-适配版同时识别入口 URI、tab_id、已知 id 和名称，保留原入口的路由、图标和顺序；
-遇到无法确认的底栏结构则保留原样。其它 JSON 处理逻辑沿用作者快照。
-它没有现成的 BoxJS 设置页，本修正默认启用，不需要额外开关。
+来源：[Bilibili_remove_ads.lpx](https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx)，原作者 kokoryh，可莉收录，上游标注 2026-10-02。
+沿用 `snippets/bilibili.snippet` 订阅地址，删除旧增强模板及对应旧 JSON/皮肤外链，**不是同时启用两套**。
 
-原脚本快照保存在 `tools/upstream/bilibili_json.js`，修正逻辑在 `tools/bilibili-navigation.js`；
-构建只替换底栏筛选，更新上游后匹配不到原逻辑会停止构建，要求重新核对。
-其余 protobuf、皮肤脚本继续使用原来的来源。不要同时加载旧本地 B 站规则和本远程订阅。
+固定选项，无用户参数、BoxJS 或持久设置覆盖：
+
+| 选项 | 值 |
+|---|---|
+| 动态“最常访问” `displayUpList` | `hide` |
+| 移除评论区置顶广告 `purifyComment` | `true` |
+| 优化评论区加载异常 `optimizeRequest` | `true`（QX 兼容条件与限制见下） |
+| 空降助手 `sponsorBlock` | `false`，相关请求与外连不迁移 |
+| 日志 `logLevel` | `off` |
+
+选择新版的依据：旧 `bilibili.protobuf.js` 只清除评论 `cm`，没有这版的置顶评论净化/请求优化入口；旧动态默认按直播状态显示，无法直接满足固定 `hide`。
+新版还覆盖更完整的直播入口、统一播放器/相关推荐接口，配置可固定并随仓库发布。旧版原生 QX 二进制接口的做法作为适配参考，但不混入旧皮肤 DIY 和旧频道接口规则。
+新版底栏 jq 原本就固定保留 **首页、动态、我的**（动态 URI 为 `bilibili://following/home/`），不会再按中文标题筛掉“关注”；无需叠加旧底栏补丁。
+其它 UI 处理维持上游默认，包括“我的”中的个性装扮、会员购；上游会员展示字段改写**不代表真实会员权益**。
+
+### 公共拦截范围
+
+- `Block_HTTPDNS.lpx` 仅取第 93 行 `httpdns.bilivideo.com`，与 B 站自身 4 条精确拒绝和 3 条有界 `chat.bilibili.com` 通配一起合并。
+- `BlockAdvertisers.lpx` 未找到明确对应 B 站的条目，**不搬入任何条目**，不使用通用广告/HTTPDNS 关键词或其他 App 规则。
+- 原 AND+OR 精确展开成 `*stun*.chat.bilibili.com`、`*tracker*.chat.bilibili.com`、`*p2p*.chat.bilibili.com`，不扩大为整个 chat 后缀。
+- 不迁移 `bsbsb.top` PROXY 或空降专属 `DmSegMobile`；构建产物禁止出现空降接口/参数入口。
+
+### QX 适配与验证边界
+
+两个 jq 文件已内联。原 `response.body.mock` 按 Loon 的提前响应语义转换为 QX `script-echo-response`，二进制值保留完整 gRPC 5 字节帧头，并合并后续 `grpc-status: 0`；不是先访问上游再改响应。
+脚本使用 QX `bodyBytes`/`ArrayBuffer`，固定配置且异常数据保护；下载依赖全部托管到本仓库，运行时无脚本下载或空降服务调用。
+评论加载优化采用 **best-effort 请求重放**：QX 1.5.0(824) 起的更新记录支持请求脚本带 `status` 提前响应（[保存的 TestFlight 日志](https://github.com/ddgksf2013/Profile/blob/994fc5a4bea3a58d47bad735f6a470143c42b98d/QX_TestFlight_Update.log#L76-L84)，不是手机验证）。仅在原请求具备支持的二进制帧和 `x-bili-moss-engine-type: 1` 时尝试；收到明确 `grpc-status: 0` 后净化并返回。
+QX 没有查到与 Loon 强制 `alpn=h2` / `h2_trailers` 等价的公开接口；没有可靠状态时保留原请求流程，**不能承诺修复所有评论加载问题或完整复现 Loon**。原站失败可能尝试另一 B 站域名，最终放行可能再发一次请求；不使用不能取消网络的 JS 超时并发重试，不承诺网络发送次数始终为一次。
+响应仅处理 unary 单帧 gRPC；流式、多帧、未知压缩、非法正文保留原响应，不猜测 Protobuf 字段。gzip 解压依赖 fflate 0.8.2 已内联，GPL-3.0/MIT 许可和原始来源保留在源快照目录。
+基础要求：开启 QX 重写和 MitM、安装并信任证书，关闭资源解析器。请求优化关闭自动 Cookie 的选项要求 **QX build 934+**（推荐当前新版，目标用户为 1.90）；旧版本可能忽略该选项，不保证相同重放行为。不能把 Loon 的 `MitM-over-HTTP/2` 开关原样当作 QX 选项。
+**未在手机 QX 1.90 上验证实际 HTTP/2、gRPC、证书及评论页面效果；本地协议样例和参数测试不等于手机实测。**
+旧 `lists/bilibili.list` 已移除，升级时删除其分流订阅；只刷新稳定的 B 站重写资源及仓库脚本。
 
 ## 后续如何更新
 
@@ -142,7 +168,7 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 
 ## 构建与检查
 
-需要 Python 3.9+、Node.js、jq。构建还需要本地原始镜像，查找位置为当前仓库或父目录的
+需要 Python 3.9+、Node.js、jq、esbuild（B 站脚本的离线打包依赖）。构建还需要本地原始镜像，查找位置为当前仓库或父目录的
 `mirror/upstream/kelee.one/`；公共仓库不包含个人完整配置、节点或订阅。
 
 ```sh
@@ -151,7 +177,7 @@ python3 tools/gen_repo_readme.py .
 python3 tools/check_qx.py --dir .
 python3 -m unittest discover -s tests -p 'test_*.py' -v
 node tests/runtime.cjs
-node tests/bilibili-navigation.cjs
+node tests/bilibili-kelee.cjs
 ```
 
 在镜像工作区运行 `python3 scripts/convert_lpx_to_qx.py` 会使用同一个生成器重建 `qx/`；
