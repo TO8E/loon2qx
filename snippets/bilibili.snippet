@@ -1,14 +1,14 @@
 #!name=哔哩哔哩去广告
-#!desc=可莉版固定配置；动态最常访问隐藏，评论净化和请求优化开启，无空降助手
+#!desc=可莉版固定配置；动态最常访问隐藏、评论净化；请求重放已移除，无空降助手
 #!author=kokoryh[https://github.com/kokoryh]
 #!qx_version=1.5.2-854
 #!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Bilibili.png
 # Source: https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx
 # 原作者：kokoryh（可莉收录）；固定配置，无需用户参数或 BoxJS。
-# 最常访问=hide；移除评论区置顶广告=true；优化评论区加载异常=true；日志=off。
+# 最常访问=hide；移除评论区置顶广告=true；optimizeRequest=false（慢加载反馈后移除重放）；日志=off。
 # 不迁移空降助手：不含 DmSegMobile 请求脚本或 bsbsb.top 分流。
 # 域名拦截已合并；仅纳入明确属于 B 站的公共补充，停用其它 B 站规则。
-# 评论加载优化已开启兼容重放，但无已核实的强制 HTTP/2/trailers 等价接口；推荐 QX build 934+。
+# 无请求拦截/重放；本脚本不能补充 QX 的 HTTP/2 MitM 能力，不能保证 gRPC 净化有效。
 # 二进制脚本已适配 QX bodyBytes；本地测试不能代替手机 HTTP/2/gRPC 实测。
 # Shared source: https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx
 host, httpdns.bilivideo.com, reject
@@ -38,7 +38,6 @@ host-wildcard, *p2p*.chat.bilibili.com, reject
 (?i)^https:\/\/grpc\.biliapi\.net\/bilibili\.app\.interface\.v1\.Teenagers\/ModeStatus$ url script-echo-response https://raw.githubusercontent.com/TO8E/loon2qx/main/js/BilibiliKelee/mock.js
 (?i)^https:\/\/grpc\.biliapi\.net\/bilibili\.app\.interface\.v1\.Search\/DefaultWords$ url script-echo-response https://raw.githubusercontent.com/TO8E/loon2qx/main/js/BilibiliKelee/mock.js
 (?i)^https:\/\/grpc\.biliapi\.net\/bilibili\.app\.(view\.v1\.View\/TFInfo|viewunite\.v1\.View\/(PlayPause|ViewEndPage))$ url script-echo-response https://raw.githubusercontent.com/TO8E/loon2qx/main/js/BilibiliKelee/mock.js
-(?i)^https:\/\/(?:grpc\.biliapi\.net|app\.bilibili\.com)\/bilibili\.(?:app\.viewunite\.v1\.View\/View|main\.community\.reply\.v1\.Reply\/MainList)$ url script-request-body https://raw.githubusercontent.com/TO8E/loon2qx/main/js/BilibiliKelee/request.js
 (?i)^https:\/\/(grpc\.biliapi\.net|app\.bilibili\.com)\/bilibili\.(app\.(show\.v1\.Popular\/Index|dynamic\.v2\.Dynamic\/DynAll|view(unite)?\.v1\.View\/(View|ViewProgress|RelatesFeed|AIRelateAsync)|playurl\.v1\.PlayURL\/PlayView|playerunite\.v1\.Player\/PlayViewUnite)|polymer\.app\.search\.v1\.Search\/SearchAll|community\.service\.dm\.v1\.DM\/DmView|main\.community\.reply\.v1\.Reply\/MainList|pgc\.gateway\.player\.v2\.PlayURL\/PlayView)$ url script-response-body https://raw.githubusercontent.com/TO8E/loon2qx/main/js/BilibiliKelee/response.js
 (?i)^https:\/\/api\.live\.bilibili\.com\/xlive\/(?:app-interface\/v2\/index\/feed|app-room\/v1\/index\/getInfoBy(?:Room|User))\? url script-response-body https://raw.githubusercontent.com/TO8E/loon2qx/main/js/BilibiliKelee/json.js
 hostname = grpc.biliapi.net, app.bilibili.com, api.bilibili.com, api.live.bilibili.com, line3-h5-mobile-api.biligame.com

@@ -157,47 +157,30 @@ test('SponsorBlock removed: original Chronos file/md5/sign retained', async () =
     assert.deepEqual(first(p, 2), chronos); assert.equal(values(p, ad).length, 0);
   }
 });
-test('Request replay: binary request fields unchanged; View response filtered', async () => {
-  const original = frame(msg(v(1, 100000), b(200, 'opaque request'))), bytes = ab(original);
-  const r = await run('request', RPC.view, undefined, {requestBody: bytes, requestHeaders: {'Cookie': 'fixture-cookie'}, fetch: async req => {
-    assert.deepEqual(Buffer.from(req.bodyBytes), original); assert(req.bodyBytes instanceof ArrayBuffer); assert(!('body' in req));
-    assert.equal(req.opts['auto-cookie'], false); assert.equal(req.opts.redirection, false); assert.equal(req.headers.Cookie, 'fixture-cookie');
-    return {statusCode: 200, headers: {'Grpc-Status': '0'}, bodyBytes: ab(frame(view))};
-  }});
-  assert.equal(r.fetches.length, 1); assert.equal(r.result.status, 'HTTP/1.1 200 OK'); assert(!('response' in r.result));
-  assertView(outputPayload(r.result)); assert.deepEqual(Buffer.from(bytes), original);
+test('Retired request URL completes synchronously without request or network globals', () => {
+  const calls = [];
+  vm.runInNewContext(scripts.request, {$done: value => calls.push(value)}, {timeout: 500});
+  assert.equal(calls.length, 1); passthrough(calls[0]);
+  assert(scripts.request.length < 3000, 'retired request asset must stay tiny');
 });
-test('Request passthrough still permits View and Reply response purification', async () => {
-  passthrough((await run('request', RPC.view)).result);
+test('Former View and Reply interception does not replay or mutate requests', async () => {
+  const original = frame(msg(v(1, 100000), b(200, 'opaque request'))), bytes = ab(original);
+  for (const route of [RPC.view, RPC.reply]) for (const engine of ['1', '2', '']) {
+    const r = await run('request', route, undefined, {requestBody: bytes,
+      requestHeaders: {'x-bili-moss-engine-type': engine, Cookie: 'fixture-cookie'},
+      fetch: () => { throw Error('Network is forbidden even for a previously eligible request'); }});
+    assert.equal(r.fetches.length, 0); passthrough(r.result);
+    assert.deepEqual(Buffer.from(bytes), original);
+  }
+});
+test('View and Reply purification stays response-only without replay', async () => {
   assertView(outputPayload((await response(RPC.view, view)).result));
-  passthrough((await run('request', RPC.reply)).result);
   assertReply(outputPayload((await response(RPC.reply, reply)).result));
 });
-test('No undocumented native H2 trailers invented', async () => {
-  const r = await run('request', RPC.reply, undefined, {fetch: async () => ({statusCode: 200, headers: {}, bodyBytes: ab(frame(reply))})});
-  assert.equal(r.fetches.length, 1); passthrough(r.result);
-  const native = await run('request', RPC.reply, undefined, {requestHeaders: {'x-bili-moss-engine-type': '2'}});
-  assert.equal(native.fetches.length, 0); passthrough(native.result);
-});
-test('Request optimization waits for settled fetch before fallback', async () => {
-  let inflight = false;
-  const r = await run('request', RPC.reply, undefined, {fetch: async (req, n) => {
-    assert.equal(inflight, false); inflight = true;
-    await new Promise(resolve => setImmediate(resolve)); inflight = false;
-    if (n === 1) throw Error('native timeout/network failure');
-    assert(req.url.startsWith('https://app.bilibili.com/'));
-    return {statusCode: 200, headers: {'grpc-status': '0', 'grpc-encoding': 'gzip'}, bodyBytes: ab(frame(reply, true))};
-  }});
-  assert.equal(r.fetches.length, 2); assertReply(outputPayload(r.result));
-});
-test('Successful transport but malformed protobuf returns original without replay', async () => {
-  const original = frame(Buffer.from([128]));
-  const r = await run('request', RPC.reply, undefined, {fetch: async () => ({statusCode: 200, headers: {'grpc-status': '0'}, bodyBytes: ab(original)})});
-  assert.equal(r.fetches.length, 1); assert.equal(r.result.status, 'HTTP/1.1 200 OK'); assert.deepEqual(Buffer.from(r.result.bodyBytes), original);
-});
-test('Request optimization failed native transport passes through once', async () => {
-  const r = await run('request', RPC.reply, undefined, {fetch: async () => { throw Error('unreachable'); }});
-  assert.equal(r.fetches.length, 2); passthrough(r.result);
+test('Missing grpc status never starts a network request', async () => {
+  const r = await response(RPC.reply, reply, {headers: {}});
+  assertReply(outputPayload(r.result)); assert.equal(r.fetches.length, 0);
+  assert(!Object.keys(r.result.headers).some(key => key.toLowerCase() === 'grpc-status'));
 });
 test('Case-insensitive paths match rule flags consistently', async () => {
   assertReply(outputPayload((await response(RPC.reply.toUpperCase(), reply)).result));
@@ -224,16 +207,11 @@ test('Live JSON original three routes only, invalid JSON fails open', async () =
 test('No runtime parameter, persistence, Loon utility, or SponsorBlock entry point', () => {
   for (const source of Object.values(scripts)) for (const banned of ['$argument', '$persistentStore', '$prefs', '$httpClient', '$utils', 'bsbsb.top', '/chronos/', 'DmSegMobile', 'skipSegments']) assert(!source.includes(banned), banned);
 });
-test('Synthetic responses drop stale HTTP encoding/length and normalize original fallback', async () => {
-  for (const payload of [reply, Buffer.from([128])]) {
-    const data = zlib.gzipSync(frame(payload, true));
-    const r = await run('request', RPC.reply, undefined, {fetch: async () => ({statusCode: 200,
-      headers: {'grpc-status': '0', 'Content-Encoding': 'gzip', 'Content-Length': String(data.length),
-        'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Trailer': 'grpc-status', 'Grpc-Encoding': 'gzip'}, bodyBytes: ab(data)})});
-    assert.equal(r.fetches.length, 1); assert.equal(r.result.status, 'HTTP/1.1 200 OK');
-    assert.deepEqual(Object.keys(r.result.headers), ['grpc-status']);
-    const p = outputPayload(r.result);
-    if (payload === reply) assertReply(p); else assert.deepEqual(p, payload);
+test('All generated assets forbid network calls and timers', () => {
+  for (const name of ['request', 'response', 'json', 'mock']) {
+    const source = fs.readFileSync(path.join(dir, name + '.js'), 'utf8');
+    for (const token of ['$task', '$httpClient', 'fetch(', 'XMLHttpRequest', 'WebSocket', 'setTimeout', 'setInterval', 'Promise'])
+      assert(!source.includes(token), `${name} unexpectedly contains ${token}`);
   }
 });
 (async () => {

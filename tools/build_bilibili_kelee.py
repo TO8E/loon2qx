@@ -10,7 +10,7 @@ import convert_lpx_to_qx as C
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = 'https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx'
 SNAPSHOT = 'tools/upstream/bilibili-kelee/Bilibili_remove_ads.lpx'
-SETTINGS = dict(displayUpList='hide', purifyComment=True, optimizeRequest=True,
+SETTINGS = dict(displayUpList='hide', purifyComment=True, optimizeRequest=False,
                 sponsorBlock=False, logLevel='off')
 SCRIPT_BASE = 'https://kelee.one/Resource/JavaScript/Bilibili/'
 JQ_BASE = 'https://kelee.one/Resource/JQLang/Bilibili/'
@@ -40,6 +40,7 @@ def parse_rules(text, raw):
     sections = C.sections(text)
     filters, rewrites, mocks, upstream_jq, scripts = [], [], [], [], []
     skipped_sponsor = 0
+    skipped_optimization = 0
     for line in sections.get('Rule', []):
         if not line.strip() or line.lstrip().startswith('#'): continue
         if line == 'DOMAIN, bsbsb.top, PROXY':
@@ -120,11 +121,16 @@ def parse_rules(text, raw):
                    'Bilibili_json_kokoryh.js':'json.js'}
         if not match['url'].startswith(SCRIPT_BASE) or name not in allowed:
             raise ValueError('Unknown script asset')
-        if match['stage']=='request' and ('enable=${optimizeRequest}' not in line or 'requires_body=true' not in line):
-            raise ValueError('Request optimization options changed')
+        if match['stage']=='request':
+            if ('enable=${optimizeRequest}' not in line or 'requires_body=true' not in line
+                    or name!='Bilibili_proto_request_kokoryh.js'):
+                raise ValueError('Request optimization options changed')
+            # QX real-device slowdown report: do not intercept/replay View or Reply.
+            skipped_optimization += 1
+            continue
         scripts.append((name,allowed[name]))
         rewrites.append(rx+' url script-'+match['stage']+'-body '+raw+'/js/BilibiliKelee/'+allowed[name])
-    if skipped_sponsor!=2 or len(scripts)!=3 or len(rewrites)!=22:
+    if skipped_sponsor!=2 or skipped_optimization!=1 or len(scripts)!=2 or len(rewrites)!=21:
         raise ValueError('Source rule count/disabled sponsor changed; review')
     hosts=[]
     for line in sections.get('MitM',[]):
@@ -188,12 +194,12 @@ def emit(out, raw, assets, supplement=None):
         raise ValueError('No BlockAdvertisers rule was identified for Bilibili')
     filters = list(dict.fromkeys(supplement['filters']+parsed['filters']))
     notes = ['原作者：kokoryh（可莉收录）；固定配置，无需用户参数或 BoxJS。',
-             '最常访问=hide；移除评论区置顶广告=true；优化评论区加载异常=true；日志=off。',
+             '最常访问=hide；移除评论区置顶广告=true；optimizeRequest=false（慢加载反馈后移除重放）；日志=off。',
              '不迁移空降助手：不含 DmSegMobile 请求脚本或 bsbsb.top 分流。',
              '域名拦截已合并；仅纳入明确属于 B 站的公共补充，停用其它 B 站规则。',
-             '评论加载优化已开启兼容重放，但无已核实的强制 HTTP/2/trailers 等价接口；推荐 QX build 934+。',
+             '无请求拦截/重放；本脚本不能补充 QX 的 HTTP/2 MitM 能力，不能保证 gRPC 净化有效。',
              '二进制脚本已适配 QX bodyBytes；本地测试不能代替手机 HTTP/2/gRPC 实测。']
-    header = ['#!name=哔哩哔哩去广告', '#!desc=可莉版固定配置；动态最常访问隐藏，评论净化和请求优化开启，无空降助手',
+    header = ['#!name=哔哩哔哩去广告', '#!desc=可莉版固定配置；动态最常访问隐藏、评论净化；请求重放已移除，无空降助手',
               '#!author=kokoryh[https://github.com/kokoryh]', '#!qx_version=1.5.2-854',
               '#!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Bilibili.png',
               '# Source: '+SOURCE]

@@ -1,6 +1,6 @@
 // QX adapter: no arguments, storage, remote modules, or SponsorBlock.
 const FIXED = Object.freeze({displayUpList: 'hide', purifyComment: true,
-  optimizeRequest: true, sponsorBlock: false, logLevel: 'off'});
+  optimizeRequest: false, sponsorBlock: false, logLevel: 'off'});
 const QX_MAX = 16 * 1024 * 1024;
 const QX_ROUTES = {
   'bilibili.app.dynamic.v2.Dynamic/DynAll': Jn,
@@ -66,14 +66,12 @@ function qxFrame(bytes) {
   framed.set(bytes, 5);
   return qxBuffer(framed); // The QX API requires ArrayBuffer, not Uint8Array.
 }
-function qxCleanHeaders(headers, synthetic = false) {
+function qxCleanHeaders(headers) {
   const result = {};
-  // QX manages HTTP length/encoding on response-body rewrites. Synthetic direct
-  // responses are new identity-encoded representations, not that rewrite pipeline.
+  // QX owns HTTP length/encoding in response-body rewrites; preserve both.
   const remove = ['grpc-encoding', 'content-md5', 'etag'];
-  if (synthetic) remove.push('content-length', 'content-encoding', 'transfer-encoding', 'connection', 'trailer');
   for (const key of Object.keys(headers || {})) {
-    if (!remove.includes(key.toLowerCase()) && !(synthetic && key.startsWith(':'))) result[key] = headers[key];
+    if (!remove.includes(key.toLowerCase())) result[key] = headers[key];
   }
   return result;
 }
@@ -83,57 +81,23 @@ function qxTransform(handler, value, headers) {
   handler(ctx, () => {});
   return qxFrame(ctx.response.bodyBytes);
 }
-async function qxMain() {
+function qxMain() {
   let finished = false;
   const done = value => { if (!finished) { finished = true; $done(value || {}); } };
   try {
+    // Response-only purification. Never fetch, retry, wait for a request or
+    // manufacture a response in the request phase. Cannot add HTTP/2 support.
+    if (typeof $response === 'undefined') return done();
     const match = /^https:\/\/(grpc\.biliapi\.net|app\.bilibili\.com)\/(bilibili\.[^?#]+)$/i.exec($request.url);
     if (!match || String($request.method).toUpperCase() !== 'POST') return done();
     const route = Object.keys(QX_ROUTES).find(key => key.toLowerCase() === match[2].toLowerCase());
     const handler = QX_ROUTES[route];
     if (!handler) return done();
-    if (QX_MODE === 'response') {
-      const headers = $response.headers || {};
-      const status = qxHeader(headers, 'grpc-status');
-      if (($response.statusCode && $response.statusCode !== 200) || (status && status !== '0')) return done();
-      const bodyBytes = qxTransform(handler, $response.bodyBytes, headers);
-      return done({bodyBytes, headers: qxCleanHeaders(headers)});
-    }
-    if (!FIXED.optimizeRequest || !['bilibili.app.viewunite.v1.View/View', 'bilibili.main.community.reply.v1.Reply/MainList'].includes(route)) return done();
-    // Requires QX 1.5.0 build 824+: request-script $done({status,...}) is a direct response.
-    // Partial migration only: QX has no documented forced-H2 / native trailer API.
-    if (qxHeader($request.headers, 'x-bili-moss-engine-type') !== '1') return done();
-    const original = qxBytes($request.bodyBytes);
-    qxUnframe(original, $request.headers || {});
-    const hosts = match[1].toLowerCase() === 'grpc.biliapi.net' ? ['grpc.biliapi.net', 'app.bilibili.com'] : ['app.bilibili.com'];
-    const requestHeaders = {};
-    for (const key of Object.keys($request.headers || {})) {
-      if (!['host', 'content-length', 'connection', 'transfer-encoding'].includes(key.toLowerCase()) && !key.startsWith(':')) requestHeaders[key] = $request.headers[key];
-    }
-    for (const host of hosts) {
-      let response;
-      try {
-        // No artificial Promise.race timeout: it cannot cancel fetch and could duplicate in-flight work.
-        // Wait for native fetch settlement before any fallback (QX default request timeout).
-        response = await $task.fetch({url: `https://${host}/${match[2]}`, method: 'POST',
-          headers: requestHeaders, bodyBytes: qxBuffer(original),
-          opts: {redirection: false, 'auto-cookie': false}});
-      } catch (_) { continue; }
-      if (Number(response.statusCode) !== 200) continue;
-      // Never manufacture grpc-status=0 from an HTTP 200 or lose unobservable native trailers.
-      if (qxHeader(response.headers, 'grpc-status') !== '0') return done();
-      let bodyBytes, originalPayload;
-      try { originalPayload = qxUnframe(response.bodyBytes, response.headers || {}); }
-      catch (_) { return done(); }
-      try { bodyBytes = qxTransform(handler, response.bodyBytes, response.headers || {}); }
-      catch (_) {
-        // Keep the original protobuf payload byte-for-byte, normalizing only its gzip/frame
-        // envelope to identity. No stale HTTP encoding headers and no second network request.
-        return done({status: 'HTTP/1.1 200 OK', headers: qxCleanHeaders(response.headers, true), bodyBytes: qxFrame(originalPayload)});
-      }
-      return done({status: 'HTTP/1.1 200 OK', headers: qxCleanHeaders(response.headers, true), bodyBytes});
-    }
-    done();
+    const headers = $response.headers || {};
+    const status = qxHeader(headers, 'grpc-status');
+    if (($response.statusCode && $response.statusCode !== 200) || (status && status !== '0')) return done();
+    const bodyBytes = qxTransform(handler, $response.bodyBytes, headers);
+    done({bodyBytes, headers: qxCleanHeaders(headers)});
   } catch (_) { done(); }
 }
 qxMain();

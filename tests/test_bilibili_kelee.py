@@ -28,7 +28,7 @@ import shared_scope as S
 RAW = 'https://raw.githubusercontent.com/TO8E/loon2qx/main'
 SNAPSHOT = REPO / 'tools/upstream/bilibili-kelee'
 SOURCE = (SNAPSHOT / 'Bilibili_remove_ads.lpx').read_text(encoding='utf-8')
-SETTINGS = dict(displayUpList='hide', purifyComment=True, optimizeRequest=True,
+SETTINGS = dict(displayUpList='hide', purifyComment=True, optimizeRequest=False,
                 sponsorBlock=False, logLevel='off')
 SOURCE_FILTERS = [f'host, {prefix}.biliapi.{suffix}, reject'
                   for suffix in ('com', 'net') for prefix in ('api', 'app')]
@@ -171,20 +171,40 @@ class BilibiliKeleeTests(unittest.TestCase):
         self.assertEqual(self.parsed['filters'], SOURCE_FILTERS)
         self.assertCountEqual(self.parsed['hosts'], HOSTS)
 
-    def test_22_rewrites_and_action_inventory_without_pinning_request_body(self):
+    def test_21_rewrites_and_no_request_interception(self):
         actions = [action for _, action in self.rows]
-        self.assertEqual(len(actions), 22)  # Review deliberately if request optimization expands.
+        self.assertEqual(len(actions), 21)
         self.assertEqual(sum(a.startswith('jsonjq-response-body ') for a in actions), 11)
         self.assertEqual(actions.count('reject-dict'), 2)
         self.assertEqual(sum(a.startswith('script-echo-response ') for a in actions), 6)
         self.assertEqual(sum(a.startswith('script-response-body ') for a in actions), 2)
         request = [a for a in actions if 'request' in a.split()[0]]
-        self.assertEqual(len(request), 1)  # Native request-header or a request script is allowed.
+        self.assertEqual(request, [])
+        self.assertFalse(any('/request.js' in action for action in actions))
         for filename in ('response.js', 'json.js'):
             self.assertEqual(sum(a.endswith('/js/BilibiliKelee/' + filename) for a in actions), 1)
         self.assertEqual(len(self.parsed['mocks']), 6)
         self.assertEqual(len(self.parsed['jq']), 2)
-        self.assertEqual(len(set(self.parsed['rewrites'])), 22)
+        self.assertEqual(len(set(self.parsed['rewrites'])), 21)
+
+    def test_view_and_reply_are_response_only_and_cannot_replay_requests(self):
+        for endpoint in ('bilibili.app.viewunite.v1.View/View',
+                         'bilibili.main.community.reply.v1.Reply/MainList',
+                         'bilibili.app.viewunite.v1.View/RelatesFeed',
+                         'bilibili.app.viewunite.v1.View/AIRelateAsync'):
+            for host in ('grpc.biliapi.net', 'app.bilibili.com'):
+                url = 'https://' + host + '/' + endpoint
+                matched = [action for pattern, action in self.rows if re.search(pattern, url)]
+                self.assertEqual(matched, ['script-response-body '+RAW+'/js/BilibiliKelee/response.js'])
+        self.assertNotIn('/request.js', '\n'.join(self.published()))
+        text = (REPO/'snippets/bilibili.snippet').read_text()
+        self.assertNotIn('优化评论区加载异常=true', text)
+        self.assertNotIn('请求优化开启', text)
+        self.assertIn('optimizeRequest=false', text)
+        for filename in ('request.js','response.js','json.js','mock.js'):
+            source = (REPO/'js/BilibiliKelee'/filename).read_text()
+            for token in ('$task','fetch(', 'setTimeout','setInterval','Promise'):
+                self.assertNotIn(token, source, filename)
 
     def test_disabled_sponsor_rules_and_global_reject_are_absent(self):
         lines = '\n'.join(self.parsed['filters'] + self.parsed['rewrites'])
@@ -418,11 +438,12 @@ class BilibiliKeleeTests(unittest.TestCase):
         expected = []
         for line in SOURCE.splitlines():
             match = re.match(r'(request|response) if \$\{url\} ~= /(.*)/i then ', line)
-            if not match or 'response.header.add(' in line or 'enable=${sponsorBlock}' in line:
+            if (not match or 'response.header.add(' in line
+                    or 'enable=${sponsorBlock}' in line or 'enable=${optimizeRequest}' in line):
                 continue
             expected.append('(?i)' + match[2])
         self.assertEqual([pattern for pattern, _ in self.rows], expected)
-        self.assertEqual(len(expected), 22)
+        self.assertEqual(len(expected), 21)
 
     def test_rejects_have_only_two_known_endpoints_and_no_catch_all(self):
         targets = [
@@ -485,7 +506,7 @@ class BilibiliKeleeTests(unittest.TestCase):
                 with self.assertRaises(ValueError, msg='Pinned Bilibili filter inventory must fail closed'):
                     K.parse_rules(changed, RAW)
 
-    def test_publication_eight_inline_filters_and_22_source_rewrites(self):
+    def test_publication_eight_inline_filters_and_21_source_rewrites(self):
         lines = self.published()
         filters = [line for line in lines if ' url ' not in line and not line.startswith('hostname')]
         self.assertCountEqual(filters, FILTERS)
@@ -494,7 +515,7 @@ class BilibiliKeleeTests(unittest.TestCase):
         hostlines = [line for line in lines if line.startswith('hostname')]
         self.assertEqual(len(hostlines), 1)
         self.assertCountEqual([x.strip() for x in hostlines[0].split('=', 1)[1].split(',')], HOSTS)
-        self.assertEqual(len(lines), 8 + 22 + 1)
+        self.assertEqual(len(lines), 8 + 21 + 1)
 
     def test_publication_manifest_fixed_settings_one_resource_and_provenance(self):
         manifest = json.loads((REPO / 'build-info.json').read_text(encoding='utf-8'))
@@ -502,7 +523,7 @@ class BilibiliKeleeTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         row = rows[0]
         expected = dict(slug='bilibili', snippet='snippets/bilibili.snippet',
-                        rewrite=22, filter=8, list=None, has_list=False,
+                        rewrite=21, filter=8, list=None, has_list=False,
                         embedded_filter=True, settings=SETTINGS,
                         source='https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx',
                         snapshot='tools/upstream/bilibili-kelee/Bilibili_remove_ads.lpx')
@@ -548,7 +569,7 @@ class BilibiliKeleeTests(unittest.TestCase):
             for token in forbidden:
                 with self.subTest(file=path.name, token=token):
                     self.assertNotIn(token, text)
-        self.assertEqual(len(rewrites(self.published())), 22)
+        self.assertEqual(len(rewrites(self.published())), 21)
 
     def test_publication_shared_scope_reports_no_advertisers_for_bilibili(self):
         scope = json.loads((REPO / 'config/shared-scope.json').read_text(encoding='utf-8'))
