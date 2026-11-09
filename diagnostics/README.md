@@ -30,3 +30,13 @@
 **遗漏一个hostname不等于覆盖其它来源。**若之前把 `config/mitm.txt` 手工合入主配置，或其他资源含 `grpc.biliapi.net`、`*.biliapi.net` 等匹配通配，该主机仍可能被解密。需确认生效的MitM主机列表中没有这些重复来源；不要只删除远程订阅一处后就声称已排除解密。
 
 本实验没有访问用户历史记录或自动修改设备配置；公开的History RPC说明只用于选择首个测试主机，并非用户真实抓包。结果用于继续定位，不预先认定grpc主机一定是原因。
+
+### 再排除 app 主机
+
+用户报告上一轮仅移除 `grpc.biliapi.net` 后仍慢。这表明仅排除该主机不足以恢复速度，不能据此判定它完全无关。
+
+下一轮使用 `bilibili-mitm-without-grpc-app.snippet`：在上一轮基础上再删去 `app.bilibili.com`，保留 `api.bilibili.com`、`api.live.bilibili.com`、`line3-h5-mobile-api.biligame.com`；8条域名规则和导入占位不变。
+
+MitM仍开启，停用正式资源和前两份诊断，只启用本轮诊断；重连QX并彻底退出B站后测试同一个入口。确认没有其他生效的本地/远程hostname规则包含 `grpc.biliapi.net`、`app.bilibili.com`，或能匹配它们的通配（例如 `*.biliapi.net`、`*.bilibili.com`）。否则应将结果记为无法隔离，而非已证实排除这两个主机。
+
+本轮仍不修改正式版。若明显变快，再恢复 app 主机复测或查看请求日志，才能进一步确认其关联；若仍慢，则需要检查余下主机或重复解密来源。
