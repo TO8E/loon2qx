@@ -1,0 +1,16 @@
+#!name=B站临时诊断：不解密grpc主机
+#!desc=仅排查用。停用正式版及其它B站诊断资源，保持MitM开启；本文件不声明grpc.biliapi.net，其它4个主机和8条域名规则与基线相同。若本地或其它资源仍包含该主机或通配规则，需先排除重复来源，否则测试无效。
+#!qx_version=1.5.2-854
+# Baseline: diagnostics/bilibili-mitm-only.snippet
+# Omission is not an override: other active hostname sources can still enable MitM.
+# No scripts, jq, mock, direct policy or real Bilibili URL rewrites.
+^http:\/\/qx-bilibili-diagnostic\.invalid\/ url reject
+host, httpdns.bilivideo.com, reject
+host, api.biliapi.com, reject
+host, app.biliapi.com, reject
+host, api.biliapi.net, reject
+host, app.biliapi.net, reject
+host-wildcard, *stun*.chat.bilibili.com, reject
+host-wildcard, *tracker*.chat.bilibili.com, reject
+host-wildcard, *p2p*.chat.bilibili.com, reject
+hostname = app.bilibili.com, api.bilibili.com, api.live.bilibili.com, line3-h5-mobile-api.biligame.com
