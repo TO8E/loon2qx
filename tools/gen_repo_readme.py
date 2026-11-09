@@ -11,8 +11,9 @@ scope_table='\n'.join('| '+', '.join(g['apps'])+' | '+g['purpose']+' | '+str(len
                       for source in scope.values() for g in source['groups'])
 text=f'''# loon2qx
 
-将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 {sum(bool(r['fname']) for r in rows)} 个应用/工具插件转换为 Quantumult X 配置。
-HTTPDNS、广告域名配套已并入各 App；另提供 B 站增强远程资源。小黑盒现已切换为可莉插件转换版。
+将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 {sum(bool(r['fname']) and not r.get('source') for r in rows)} 个应用/工具插件转换为 Quantumult X 配置。
+另提供 loon.103516.xyz 中国联通插件转换版和 B 站增强远程资源。
+HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插件转换版。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
 独立 App 文件合计 {sum(r['rewrite'] for r in rows)} 条重写、{sum(r['filter'] for r in rows)} 条分流；去重后仍为 {info['unique']['rewrites']} 条重写、{info['unique']['filters']} 条分流。
@@ -26,7 +27,7 @@ HTTPDNS、广告域名配套已并入各 App；另提供 B 站增强远程资源
 - 远程重写使用裸规则及 `hostname = …`，不含配置段头。其主机由 QX 合并；`config/mitm.txt` 是供本地合并时使用的清单。
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
 - QQ 音乐只有域名分流，不生成或订阅空的重写文件。
-- 同一 App 的 `.snippet` 和 `.list` 配套启停；QX 原生订阅将重写与分流分开读取，不能把 IP/域名分流直接塞进重写文件。
+- 同一 App 若同时提供 `.snippet` 和 `.list`，应配套启停。新版 QX 的重写资源支持部分域名拒绝规则；中国联通已合并为单文件（建议 QX 1.5.2(854)+），其余资源保持现有分离结构，不把任意 IP/策略分流混入重写。
 - B 站使用 `snippets/bilibili.snippet` + `lists/bilibili.list`；小黑盒使用 `snippets/xiaoheihe.snippet`。
 - 从旧配置迁移时，删除 `[rewrite_local]` 中 `BEGIN BILIBILI_KOKORYH_QX` 到 `END BILIBILI_KOKORYH_QX` 的整块，以及两条小黑盒重写，再添加相应远程订阅。只需迁移一次，无须覆盖整份主配置。
 
@@ -61,6 +62,24 @@ HTTPDNS、广告域名配套已并入各 App；另提供 B 站增强远程资源
 `js/` 不是上游的逐字节副本：生成时加入 QX 存储适配及回调保护。
 `build-info.json` 记录脚本来源、上游摘要和生成后摘要；每次构建刷新脚本，避免继续使用旧文件。
 `jq/` 保存内联使用的原文，`tools/` 为生成/检查工具，`tests/` 为行为回归用例。
+
+## 中国联通合并版
+
+来源：[loon.103516.xyz/Plugin/ChinaUnicom.lpx](https://loon.103516.xyz/Plugin/ChinaUnicom.lpx)，原作者标注为 mist-whisper，源文件另列 ddgksf2013 参考。
+原插件标注更新于 2026-11-02 21:00；原文快照和 SHA-256 记录于 `tools/upstream/ChinaUnicom.lpx` 与 `build-info.json`。
+只添加 `snippets/chinaunicom.snippet` 到重写资源：**1 条精确域名拒绝 + 3 条 URL 拦截 + 6 条内联 jq 响应修改**，无外部 JS 或额外分流订阅。
+混合分流/重写在 [QX 1.5.2(844) 公告](https://t.me/QuanXNews/294) 中加入，内联 jq 在 [845 公告](https://t.me/QuanXNews/296) 中加入；本资源保守建议 QX 1.5.2(854) 或更新版。
+开启重写和 MitM、信任证书；域名为 `m.client.10010.com`、`img.client.10010.com`。请勿同时启用 Zirawell、ddgksf2013 等其他联通规则。
+
+覆盖搜索框推广、浮窗、钱包模块、广告推送、新人专享、我的页面部分推广和首页瀑布流。
+保留原正则 `/i` 和协议范围。钱包接口在 Loon 中会先设置 `payShowFlag=false`，再命中后续规则清空 `.data`；QX 只执行首条，因此已将窄钱包规则转换为最终的 `.data={{}}`，避免逐行照搬造成漏处理。
+执行顺序依据 [Loon 官方新版重写文档](https://nsloon.app/docs/Rewrite/rewrite_v2/#多条-rewrite)：同阶段所有匹配按配置顺序执行，失败的 Action 跳过并继续；规则结构变化会让转换报错，要求复核。
+上游正则没有补加路径结尾或其他边界。本地测试核对规则匹配和 JSON 输出，未进行 Loon/QX 手机端实测。
+
+## QQ 音乐单一分流资源
+
+`lists/qqmusic.list` 包含可莉 QQ 音乐插件的 11 个精确广告域名，以及仓库原有的 3 个 QQ 音乐广告/统计补充域名（来自 `BlockAdvertisers.lpx`），合计 14 条拒绝。
+添加到 **分流资源**即可，不是重写资源，不需要 MitM 或额外 JS。2026-11-09 核对当前上游，域名列表与仓库一致。
 
 ## 小黑盒可莉版
 

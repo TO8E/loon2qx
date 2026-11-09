@@ -81,7 +81,16 @@ def check_file(path, sectioned=True):
             elif parts[0] not in FILTER_TYPES and parts[0] != "final":
                 bad.append(f"{path}:{no} 未知 filter 类型 {parts[0]}")
         elif not sectioned:
-            check_rewrite(os.path.basename(path), s, no)
+            if re.match(r'^[a-z0-9-]+\s*,', s) and ' url ' not in s:
+                # Modern rewrite resources may embed domain reject rules.
+                # Deliberately do not accept IP rules or non-reject policies here.
+                parts = [p.strip() for p in s.split(',')]
+                counts['filter'] += 1
+                if (len(parts) != 3 or parts[0] not in {'host', 'host-suffix'}
+                        or not parts[1] or parts[2] != 'reject'):
+                    bad.append(f'{path}:{no} 不支持的合并域名拦截: {s}')
+            else:
+                check_rewrite(os.path.basename(path), s, no)
         for k in LOON_LEFTOVER:
             if k in s:
                 bad.append(f"{path}:{no} 残留 Loon 语法 {k}")
@@ -101,6 +110,13 @@ def main():
     info_path = os.path.join(QX,'build-info.json')
     if os.path.exists(info_path):
         info=json.load(open(info_path,encoding='utf-8'))
+        for row in info.get('rows', []):
+            if row.get('snapshot'):
+                source_path=os.path.join(QX,row['snapshot'])
+                if not os.path.isfile(source_path):
+                    bad.append('缺少上游快照 '+row['snapshot'])
+                elif hashlib.sha256(open(source_path,'rb').read()).hexdigest()!=row['upstream_sha256']:
+                    bad.append('上游快照与构建记录不一致 '+row['snapshot'])
         for rel,meta in info.get('assets',{}).items():
             path=os.path.join(QX,rel)
             if not os.path.isfile(path):

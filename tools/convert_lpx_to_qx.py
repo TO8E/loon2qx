@@ -68,7 +68,6 @@ SKIPPED = {
     "BoxJS": ("BoxJs.lpx", "kelee 插件只是 chavyleung chavy.boxjs.js 的 Loon 外壳；QX 官方 boxjs.rewrite.quanx.conf 即原生"),
     "Sub-Store": ("Sub-Store.lpx", "kelee 插件只是官方 JS 的 Loon 外壳；QX 官方 QX.snippet 即原生"),
     "Script-Hub": ("Script-Hub.lpx", "kelee 插件只是官方 script-hub.js 的 Loon 外壳；QX 官方 script-hub.qx.conf 即原生"),
-    "中国联通去广告": (None, "kelee 无对应插件（你用的是 ddgksf2013 原生）"),
     "一汽大众去广告": (None, "kelee 无对应插件（zirawell 原生）"),
     "AdGuard": (None, "kelee 无对应插件（yfamilys 原生）"),
     "哔哩哔哩增强": (None, "已有 kokoryh 本地转换版，非作者官方 QX 配置；本批不重复转换"),
@@ -522,6 +521,23 @@ def convert(show, fname, text=None):
             ua_regex = re.escape(ua).replace(r"\*", ".*").replace(r"\?", ".")
             header = r"(?is)^(?!.*(?:^|\r\n)User-Agent:\s*" + ua_regex + r"(?:\r\n|$))"
             rewrites.append([rx + " " + header, "request", ("reject", None), "URL+UA 精确排除其它 User-Agent"])
+
+    if fname == 'ChinaUnicom.lpx':
+        # Loon rewrite_v2 executes ALL matching rewrites in source order.
+        # QX uses the first match. The later broad wallet rule overwrites data,
+        # including when the earlier payShowFlag action fails on non-objects.
+        narrow = r'(?i)^https:\/\/m\.client\.10010\.com\/clientMyPage\/v1\/api\/myWallet'
+        broad = r'(?i)^https?:\/\/m\.client\.10010\.com\/clientMyPage\/v\d\/api\/(myWallet|myPoints|myColorfulRingtone|newUserInfo|getDeviceInfo)'
+        narrow_rows = [r for r in rewrites if r[0] == narrow and r[1] == 'response']
+        broad_rows = [r for r in rewrites if r[0] == broad and r[1] == 'response']
+        if (len(narrow_rows) != 1 or len(broad_rows) != 1
+                or narrow_rows[0][2] != ('jsonjq-response-body', "'.data.payShowFlag = false'")
+                or broad_rows[0][2] != ('jsonjq-response-body', "'.data={}'")
+                or rewrites.index(narrow_rows[0]) >= rewrites.index(broad_rows[0])):
+            raise ValueError('ChinaUnicom wallet overlap changed; review sequential Loon semantics')
+        narrow_rows[0][2] = ('jsonjq-response-body', "'.data={}'")
+        narrow_rows[0][3] = '合并后续钱包清空操作，保留 Loon 多条匹配按序执行的最终效果'
+        notes.append('钱包重叠规则已合并最终效果：HTTPS v1 myWallet 先设标志后被后续规则清空，QX 直接令 data={}。')
 
     # ---- [MitM] ----
     for line in sec.get("MitM", []):

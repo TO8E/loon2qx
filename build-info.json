@@ -310,6 +310,32 @@
       "has_list": false,
       "snippet": "snippets/xiaoheihe.snippet",
       "list": null
+    },
+    {
+      "name": "中国联通去广告",
+      "fname": "ChinaUnicom.lpx",
+      "slug": "chinaunicom",
+      "kind": "snippets",
+      "rewrite": 9,
+      "filter": 1,
+      "hosts": [
+        "m.client.10010.com",
+        "img.client.10010.com"
+      ],
+      "notes": [
+        "钱包重叠规则已合并最终效果：HTTPS v1 myWallet 先设标志后被后续规则清空，QX 直接令 data={}。",
+        "原作者：mist-whisper；源插件另注明 ddgksf2013 规则参考。",
+        "QX 1.5.2(854)+ 合并资源；域名拦截与重写一起添加到 rewrite_remote，无外部 JS。",
+        "钱包重叠处理依据 Loon 官方 rewrite_v2：同阶段所有匹配按序执行；QX 按最终效果转换。"
+      ],
+      "has_list": false,
+      "snippet": "snippets/chinaunicom.snippet",
+      "list": null,
+      "source": "https://loon.103516.xyz/Plugin/ChinaUnicom.lpx",
+      "snapshot": "tools/upstream/ChinaUnicom.lpx",
+      "upstream_sha256": "3ec16886d2c3f5ad337d673b112b7d64220f896c611340a948c7e5676e3f51da",
+      "embedded_filter": true,
+      "qx_min_version": "1.5.2-854"
     }
   ],
   "hosts": [
@@ -348,7 +374,9 @@
     "app.bilibili.com",
     "api.bilibili.com",
     "api.live.bilibili.com",
-    "api.xiaoheihe.cn"
+    "api.xiaoheihe.cn",
+    "m.client.10010.com",
+    "img.client.10010.com"
   ],
   "assets": {
     "js/JD/JD_remove_ads.js": {
@@ -390,8 +418,8 @@
     }
   },
   "unique": {
-    "rewrites": 136,
-    "filters": 45
+    "rewrites": 145,
+    "filters": 46
   },
   "deduped": {
     "rewrites": 10,
