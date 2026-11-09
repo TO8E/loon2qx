@@ -58,10 +58,12 @@ def check_rewrite(path, line, no):
 
 
 def check_file(path, sectioned=True):
-    if "[rewrite_local]" not in open(path, encoding="utf-8").read():
+    with open(path, encoding="utf-8") as stream:
+        content = stream.read()
+    if "[rewrite_local]" not in content:
         sectioned = False           # 裸行格式的远程 rewrite 源
     sec, no = None, 0
-    for raw in open(path, encoding="utf-8"):
+    for raw in content.splitlines():
         no += 1
         line = raw.rstrip("\n")
         s = line.strip()
@@ -142,8 +144,14 @@ def main():
                 rel=urllib.parse.unquote(url[len(info['raw'])+1:])
                 path=os.path.join(QX,rel)
                 if not os.path.isfile(path):bad.append(f'{filename}:{no} 资源不存在 {rel}')
-                elif filename=='rewrite_remote.conf' and not re.search(r'\surl(?:-and-header)?\s',open(path,encoding='utf-8').read()):
-                    bad.append(f'{filename}:{no} 空重写资源 {rel}')
+                elif filename=='rewrite_remote.conf':
+                    content=open(path,encoding='utf-8').read()
+                    active=[s.strip() for s in content.splitlines()
+                            if s.strip() and not s.lstrip().startswith(('#',';'))]
+                    has_rule=any(' url ' in s or ' url-and-header ' in s
+                                 or re.fullmatch(r'host(?:-suffix)?,\s*[^,\s]+,\s*reject',s)
+                                 for s in active)
+                    if not has_rule:bad.append(f'{filename}:{no} 空重写资源 {rel}')
     for f in sorted(glob.glob(os.path.join(QX, "lists/*.list")) +
                     glob.glob(os.path.join(QX, "base/*.list"))):   # 纯 filter 行, 无段头
         for no, line in enumerate(open(f, encoding="utf-8"), 1):

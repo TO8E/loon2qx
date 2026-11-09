@@ -26,8 +26,8 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 - 将 `config/filter_remote.conf` 添加到 `[filter_remote]`，保留各资源本来的策略。12306 含广告域名 DIRECT 配套规则，不能给所有资源统一指定 `force-policy=reject`。
 - 远程重写使用裸规则及 `hostname = …`，不含配置段头。其主机由 QX 合并；`config/mitm.txt` 是供本地合并时使用的清单。
 - 生成并信任自己的 MITM 证书，启用重写。相同 App 不要同时启用旧版本或其他作者的重写。
-- QQ 音乐只有域名分流，不生成或订阅空的重写文件。
-- 同一 App 若同时提供 `.snippet` 和 `.list`，应配套启停。新版 QX 的重写资源支持部分域名拒绝规则；中国联通已合并为单文件（建议 QX 1.5.2(854)+），其余资源保持现有分离结构，不把任意 IP/策略分流混入重写。
+- QQ 音乐默认使用 `snippets/qqmusic.snippet` 添加到重写资源，内含 14 条域名拦截，无 URL 重写、脚本或 MitM；与旧 `lists/qqmusic.list` **二选一**，不要重复订阅。
+- 除 QQ 音乐的两种替代格式外，同一 App 若同时提供 `.snippet` 和 `.list`，应配套启停。新版 QX 的重写资源支持域名规则；中国联通和 QQ 音乐各用一个文件即可（建议 QX 1.5.2(854)+），其余应用保持原结构。
 - B 站使用 `snippets/bilibili.snippet` + `lists/bilibili.list`；小黑盒使用 `snippets/xiaoheihe.snippet`。
 - 从旧配置迁移时，删除 `[rewrite_local]` 中 `BEGIN BILIBILI_KOKORYH_QX` 到 `END BILIBILI_KOKORYH_QX` 的整块，以及两条小黑盒重写，再添加相应远程订阅。只需迁移一次，无须覆盖整份主配置。
 
@@ -76,10 +76,14 @@ HTTPDNS、广告域名配套已并入各 App；小黑盒现已切换为可莉插
 执行顺序依据 [Loon 官方新版重写文档](https://nsloon.app/docs/Rewrite/rewrite_v2/#多条-rewrite)：同阶段所有匹配按配置顺序执行，失败的 Action 跳过并继续；规则结构变化会让转换报错，要求复核。
 上游正则没有补加路径结尾或其他边界。本地测试核对规则匹配和 JSON 输出，未进行 Loon/QX 手机端实测。
 
-## QQ 音乐单一分流资源
+## QQ 音乐插件版（与旧分流版二选一）
 
-`lists/qqmusic.list` 包含可莉 QQ 音乐插件的 11 个精确广告域名，以及仓库原有的 3 个 QQ 音乐广告/统计补充域名（来自 `BlockAdvertisers.lpx`），合计 14 条拒绝。
-添加到 **分流资源**即可，不是重写资源，不需要 MitM 或额外 JS。2026-11-09 核对当前上游，域名列表与仓库一致。
+`snippets/qqmusic.snippet` 可添加到 **重写资源**，建议 QX 1.5.2(854)+，关闭资源解析器。
+内容仍是可莉原插件的 11 个精确广告域名，加原有 3 个广告/统计补充域名（来自 `BlockAdvertisers.lpx`），合计 14 条拒绝，没有增加 URL 重写或脚本，**无需 MitM**。
+这是新版 QX 支持的域名规则资源，不是为了凑成插件而增加无用重写；名称、图标和来源信息已保留。
+旧 `lists/qqmusic.list` 继续保留供原分流订阅使用，与插件版规则完全相同。**启用插件版后，停用或删除旧 QQ 音乐分流资源；反之亦然。**
+默认 `config/rewrite_remote.conf` 已使用插件版，`config/filter_remote.conf` 不再重复订阅旧列表。统计数字按每个 App 的有效规则计算，不重复计入替代格式。
+2026-11-09 核对可莉上游，两种格式均保持原覆盖。语法和构建测试不代替手机端导入实测。
 
 ## 小黑盒可莉版
 

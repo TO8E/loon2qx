@@ -10,17 +10,22 @@
       "filter": 14,
       "hosts": [],
       "notes": [
-        "已并入本 App 的 HTTPDNS/广告域名配套；来源和分配见 config/shared-scope.json。"
+        "已并入本 App 的广告/统计域名配套；来源和分配见 config/shared-scope.json。",
+        "原作者：可莉；本资源仅含域名拦截，无 URL 重写、脚本或 MitM。",
+        "QX 1.5.2(854)+ 可添加到重写资源；与 lists/qqmusic.list 二选一，不要重复订阅。"
       ],
       "has_list": true,
-      "snippet": null,
+      "snippet": "snippets/qqmusic.snippet",
       "list": "lists/qqmusic.list",
       "supplements": [
         {
           "source": "https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx",
           "purpose": "QQ 音乐广告与统计补充"
         }
-      ]
+      ],
+      "embedded_filter": true,
+      "qx_min_version": "1.5.2-854",
+      "alternative_list": true
     },
     {
       "name": "京东去广告",
