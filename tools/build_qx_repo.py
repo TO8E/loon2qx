@@ -74,11 +74,10 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
     if slug=='qqmusic':
         # Import compatibility workaround: the domain-only snippet was rejected
         # as invalid by a user on QX 1.90 with resource parser disabled.
-        # HTTP only, same already-rejected host. Identity header replacement:
-        # no extra rejection, no forced DIRECT, no script and no MITM.
-        if 'host, ad.tencentmusic.com, reject' not in result['filters']:
-            raise ValueError('QQMusic compatibility host is no longer rejected; review upstream')
-        native.append(r'^http:\/\/ad\.tencentmusic\.com\/ url request-header ^([\s\S]*)$ request-header $1')
+        # Restore the simple reject placeholder, adding 1 to the TLD so it
+        # does not match the real ad.tencentmusic.com host. No header rewrite,
+        # forced DIRECT, script or MITM; the 14 real domain rules stay intact.
+        native.append(r'^http:\/\/ad\.tencentmusic\.com1\/ url reject')
     hosts=C.complete_hosts(result['rewrites'],result['hosts'])
     added=[h for h in hosts if h not in result['hosts']]
     notes=list(dict.fromkeys(supplement.get('notes',[])+result['notes']))
@@ -97,8 +96,8 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
             notes.append('QX 1.5.2(854)+ 合并资源；域名拦截与重写一起添加到 rewrite_remote，无外部 JS。')
             notes.append('钱包重叠处理依据 Loon 官方 rewrite_v2：同阶段所有匹配按序执行；QX 按最终效果转换。')
         elif slug=='qqmusic':
-            notes.append('原作者：可莉；14 条域名拦截 + 1 条 HTTP 原样请求头占位，无脚本或 MitM。')
-            notes.append('占位不再拒绝请求、不修改请求头，也不强制直连；原广告域名拒绝保持不变。')
+            notes.append('原作者：可莉；14 条域名拦截 + 1 条域名加 1 的 HTTP 拒绝占位，无脚本或 MitM。')
+            notes.append('占位域名改为 ad.tencentmusic.com1，不匹配真实 .com 地址；原 14 条域名拒绝保持不变。')
             notes.append('纯域名版在用户 QX 1.90 中报内容无效；此混合资源为兼容修正版，待手机导入验证。')
             notes.append('添加到重写资源，关闭资源解析器；与 lists/qqmusic.list 二选一，不要重复订阅。')
     if added:notes.append('补齐 HTTPS 匹配主机：'+', '.join(added))
