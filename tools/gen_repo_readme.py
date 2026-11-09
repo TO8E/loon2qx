@@ -11,8 +11,8 @@ scope_table='\n'.join('| '+', '.join(g['apps'])+' | '+g['purpose']+' | '+str(len
                       for source in scope.values() for g in source['groups'])
 text=f'''# loon2qx
 
-将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 12 个应用/工具插件转换为 Quantumult X 配置。
-HTTPDNS、广告域名配套已并入各 App；B 站增强和小黑盒原本地重写也已移为远程资源。
+将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 {sum(bool(r['fname']) for r in rows)} 个应用/工具插件转换为 Quantumult X 配置。
+HTTPDNS、广告域名配套已并入各 App；另提供 B 站增强远程资源。小黑盒现已切换为可莉插件转换版。
 原始作者信息保留在资源说明及脚本内。彩云天气的误转换已移除；不处理原配置里的彩云 Pro。
 
 独立 App 文件合计 {sum(r['rewrite'] for r in rows)} 条重写、{sum(r['filter'] for r in rows)} 条分流；去重后仍为 {info['unique']['rewrites']} 条重写、{info['unique']['filters']} 条分流。
@@ -61,6 +61,17 @@ HTTPDNS、广告域名配套已并入各 App；B 站增强和小黑盒原本地�
 `js/` 不是上游的逐字节副本：生成时加入 QX 存储适配及回调保护。
 `build-info.json` 记录脚本来源、上游摘要和生成后摘要；每次构建刷新脚本，避免继续使用旧文件。
 `jq/` 保存内联使用的原文，`tools/` 为生成/检查工具，`tests/` 为行为回归用例。
+
+## 小黑盒可莉版
+
+`snippets/xiaoheihe.snippet` 由可莉的 `XiaoHeiHe_remove_ads.lpx` 转换，替换先前 wxs0625 来源的版本，订阅 URL 不变。
+原作者：可莉；来源：https://kelee.one/Tool/Loon/Lpx/XiaoHeiHe_remove_ads.lpx 。
+源文件快照位于 `tools/upstream/XiaoHeiHe_remove_ads.lpx`，标注更新时间为 2026-10-02 13:57:49。
+保留 HTTPS 匹配和 `/i` 标志：开屏 `get_ads_info_v2` 返回空 JSON 对象，信息流使用 QX 内联 jq，无外部 JS。
+信息流仅清除 `content_type == 27` 条目的 13 个指定字段（包括大写 `PROTOCOL`，不删除小写 `protocol`），不删除整个条目。
+为忠实保留可莉原版逻辑，未沿用旧模板的数组/对象检查；返回结构异常时 jq 可能报错，未做手机实测。
+已订阅此仓库版本的用户刷新原资源即可；不要与 Zirawell 或其它小黑盒重写同时启用。
+完整构建时，将最新源放入本地镜像的 `Tool/Loon/Lpx/XiaoHeiHe_remove_ads.lpx`；回归测试使用仓库中的源快照。
 
 ## B 站增强底栏修正
 

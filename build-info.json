@@ -296,7 +296,7 @@
     },
     {
       "name": "小黑盒去广告",
-      "fname": null,
+      "fname": "XiaoHeiHe_remove_ads.lpx",
       "slug": "xiaoheihe",
       "kind": "snippets",
       "rewrite": 2,
@@ -305,7 +305,7 @@
         "api.xiaoheihe.cn"
       ],
       "notes": [
-        "来源：https://github.com/wxs0625/loon-plugins/blob/main/blockAds_all.plugin；仅迁移既有小黑盒规则。"
+        "原作者：可莉；忠实保留上游 jq 逻辑（删除大写 PROTOCOL，无外部 JS）。"
       ],
       "has_list": false,
       "snippet": "snippets/xiaoheihe.snippet",

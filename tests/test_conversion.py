@@ -14,6 +14,15 @@ import convert_lpx_to_qx as C
 import build_qx_repo as B
 import shared_scope as S
 
+XIAOHEIHE_FILE='XiaoHeiHe_remove_ads.lpx'
+XIAOHEIHE_JQ=('.result.links |= map(if .content_type == 27 then del(.title, .ad_pm, .img_gif, '
+              '.idea_id, .ad_report, .label, .source, .intranet_only, .ad_cm, .content_type, '
+              '.PROTOCOL, .img, .ad_ratio) else . end)')
+XIAOHEIHE_RULES=[
+    r'(?i)^https:\/\/api\.xiaoheihe\.cn\/account\/get_ads_info_v2 url reject-dict',
+    r'(?i)^https:\/\/api\.xiaoheihe\.cn\/bbs\/app\/feeds\/news url jsonjq-response-body '
+    +"'"+XIAOHEIHE_JQ+"'"]
+
 class ConversionTests(unittest.TestCase):
     def convert(self,text,filename='test.lpx'):
         with tempfile.TemporaryDirectory() as d:
@@ -215,6 +224,103 @@ response if ${url} ~= /^https:\/\/a\.test/i then script("https://kelee.one/Resou
             self.assertEqual(len(matched),1,url)
             self.assertTrue(matched[0].endswith(script),url)
         self.assertNotIn('__RAW_BASE__','\n'.join(bili))
+
+    def test_xiaoheihe_kelee_enabled_and_not_skipped(self):
+        self.assertEqual([f for _,f,_ in C.ENABLED if f==XIAOHEIHE_FILE],[XIAOHEIHE_FILE])
+        self.assertEqual(B.SLUGS.get(XIAOHEIHE_FILE),'xiaoheihe')
+        self.assertFalse(any('小黑盒' in name or filename==XIAOHEIHE_FILE
+                             for name,(filename,_) in C.SKIPPED.items()))
+        remote=(REPO/'config/rewrite_remote.conf').read_text().splitlines()
+        self.assertEqual(sum('/snippets/xiaoheihe.snippet,' in line
+                             for line in remote if not line.startswith('#')),1)
+
+    def test_xiaoheihe_kelee_conversion_matches_published_rules_and_hostname(self):
+        source=(REPO/'tools/upstream'/XIAOHEIHE_FILE).read_text(encoding='utf-8')
+        result=self.convert(source,XIAOHEIHE_FILE)
+        self.assertEqual([row[1] for row in result['rewrites']],['request','response'])
+        converted=[C.fmt_rewrite(row)[0] for row in result['rewrites']]
+        self.assertEqual(converted,XIAOHEIHE_RULES)
+        self.assertEqual(result['hosts'],['api.xiaoheihe.cn'])
+        self.assertEqual(result['filters'],[])
+        self.assertEqual(result['tasks'],[])
+        published=(REPO/'snippets/xiaoheihe.snippet').read_text().splitlines()
+        self.assertEqual(published[0],'hostname = api.xiaoheihe.cn')
+        self.assertEqual([line for line in published if line.startswith('hostname = ')],
+                         ['hostname = '+', '.join(result['hosts'])])
+        self.assertEqual([line for line in published if ' url ' in line and not line.startswith('#')],
+                         converted)
+
+    def test_xiaoheihe_rejects_only_https_v2_with_case_insensitive_matching(self):
+        rules=[line for line in (REPO/'snippets/xiaoheihe.snippet').read_text().splitlines()
+               if ' url ' in line and not line.startswith('#')]
+        rejects=[line.split(' url ',1)[0] for line in rules if line.endswith(' url reject-dict')]
+        self.assertEqual(rejects,[XIAOHEIHE_RULES[0].split(' url ',1)[0]])
+        for url in ['https://api.xiaoheihe.cn/account/get_ads_info_v2',
+                    'https://api.xiaoheihe.cn/account/get_ads_info_v2?fixture=1',
+                    'HTTPS://API.XIAOHEIHE.CN/ACCOUNT/GET_ADS_INFO_V2?fixture=1']:
+            with self.subTest(url=url):self.assertTrue(any(re.search(rx,url) for rx in rejects))
+        for url in ['https://api.xiaoheihe.cn/account/get_ads_info',
+                    'https://api.xiaoheihe.cn/account/get_ads_info?fixture=1',
+                    'https://api.xiaoheihe.cn/account/get_ads_info_v1',
+                    'https://api.xiaoheihe.cn/account/get_ads_info_v3',
+                    'http://api.xiaoheihe.cn/account/get_ads_info_v2',
+                    'HTTP://API.XIAOHEIHE.CN/ACCOUNT/GET_ADS_INFO_V2',
+                    'https://api.xiaoheihe.cn.evil.test/account/get_ads_info_v2',
+                    'https://api.xiaoheihe.cn/bbs/app/feeds/news']:
+            with self.subTest(url=url):self.assertFalse(any(re.search(rx,url) for rx in rejects))
+        feed=rules[1].split(' url ',1)[0]
+        self.assertTrue(re.search(feed,'HTTPS://API.XIAOHEIHE.CN/BBS/APP/FEEDS/NEWS?fixture=1'))
+        self.assertIsNone(re.search(feed,'http://api.xiaoheihe.cn/bbs/app/feeds/news'))
+
+    def test_xiaoheihe_feed_deletes_13_fields_without_removing_ad_elements(self):
+        fields=('title','ad_pm','img_gif','idea_id','ad_report','label','source',
+                'intranet_only','ad_cm','content_type','PROTOCOL','img','ad_ratio')
+        self.assertEqual(len(fields),13)
+        ad={field:'remove-'+field for field in fields}
+        ad.update(content_type=27,id='ad',protocol='keep-lowercase',
+                  extra={'PROTOCOL':'nested-keep','title':'nested-keep'})
+        normal={field:'normal-'+field for field in fields}
+        normal.update(content_type=1,id='normal',protocol='normal-lowercase')
+        string_type=dict(ad,content_type='27',id='string-type')
+        no_type={'id':'no-type','title':'keep','PROTOCOL':'keep','protocol':'keep'}
+        body={'result':{'links':[normal,ad,string_type,no_type,{'content_type':27}],
+                        'cursor':'keep','PROTOCOL':'outside-links'},'status':'ok','extra':[1,2]}
+        kept_ad={'id':'ad','protocol':'keep-lowercase',
+                 'extra':{'PROTOCOL':'nested-keep','title':'nested-keep'}}
+        result=self.generated_jq('xiaoheihe','https://api.xiaoheihe.cn/bbs/app/feeds/news?fixture=1',body)
+        self.assertEqual(result,{'result':{'links':[normal,kept_ad,string_type,no_type,{}],
+                                         'cursor':'keep','PROTOCOL':'outside-links'},
+                                 'status':'ok','extra':[1,2]})
+        self.assertEqual(len(result['result']['links']),len(body['result']['links']))
+        self.assertTrue(set(fields).isdisjoint(result['result']['links'][1]))
+        self.assertEqual(self.generated_jq('xiaoheihe','HTTPS://API.XIAOHEIHE.CN/BBS/APP/FEEDS/NEWS',
+                                          {'result':{'links':[],'keep':1}}),
+                         {'result':{'links':[],'keep':1}})
+
+    def test_xiaoheihe_emit_uses_kelee_source_without_native_template(self):
+        source=(REPO/'tools/upstream'/XIAOHEIHE_FILE).read_text(encoding='utf-8')
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);mirror=root/'mirror';src=mirror/'upstream/kelee.one/Tool/Loon/Lpx'
+            src.mkdir(parents=True);(src/XIAOHEIHE_FILE).write_text(source,encoding='utf-8')
+            out=root/'out';assets={}
+            with patch.object(C,'SRC',str(src)),patch.object(C,'MIRROR',str(mirror)):
+                row,rules,filters,tasks=B.emit(out,'小黑盒去广告',XIAOHEIHE_FILE,
+                                              'xiaoheihe','snippets',B.RAW,assets)
+            self.assertEqual(rules,XIAOHEIHE_RULES)
+            self.assertEqual(row['rewrite'],2)
+            self.assertEqual(row['fname'],XIAOHEIHE_FILE)
+            self.assertEqual(row['hosts'],['api.xiaoheihe.cn'])
+            self.assertEqual(filters,[])
+            self.assertEqual(tasks,[])
+            self.assertEqual(assets,{})
+            emitted=(out/'snippets/xiaoheihe.snippet').read_text()
+            self.assertEqual(emitted.splitlines()[0],'hostname = api.xiaoheihe.cn')
+            self.assertEqual([line for line in emitted.splitlines()
+                              if ' url ' in line and not line.startswith('#')],XIAOHEIHE_RULES)
+            self.assertIn('https://kelee.one/Tool/Loon/Lpx/'+XIAOHEIHE_FILE,emitted)
+            self.assertNotIn('wxs0625',emitted)
+            self.assertNotIn('try ',emitted)
+            self.assertNotIn('type == "object"',emitted)
 
     def generated_jq(self,slug,url,body):
         for line in (REPO/'snippets'/(slug+'.snippet')).read_text().splitlines():

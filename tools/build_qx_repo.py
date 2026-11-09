@@ -11,7 +11,8 @@ RAW = 'https://raw.githubusercontent.com/TO8E/loon2qx/main'
 SLUGS = {'QQMusic_remove_ads.lpx':'qqmusic','JD_remove_ads.lpx':'jd','XiaChuFang_remove_ads.lpx':'xiachufang',
          'Taobao_remove_ads.lpx':'taobao','FleaMarket_remove_ads.lpx':'goofish','RedPaper_remove_ads.lpx':'xhs',
          '12306_remove_ads.lpx':'12306','CoolApk_remove_ads.lpx':'coolapk','Amap_remove_ads.lpx':'amap',
-         'LOL_Bible_remove_ads.lpx':'mlol','PuPuMall_remove_ads.lpx':'pupu','Google.lpx':'google'}
+         'LOL_Bible_remove_ads.lpx':'mlol','PuPuMall_remove_ads.lpx':'pupu','Google.lpx':'google',
+         'XiaoHeiHe_remove_ads.lpx':'xiaoheihe'}
 
 def write(path, text):
     path.parent.mkdir(parents=True,exist_ok=True)
@@ -64,7 +65,7 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
     result['rewrites']=supplement.get('rewrites',[])+result['rewrites']
     result['filters']=list(dict.fromkeys(supplement.get('filters',[])+result['filters']))
     native=[]
-    native_file={'bilibili':'bilibili-enhance.snippet','xiaoheihe':'xiaoheihe.snippet'}.get(slug)
+    native_file={'bilibili':'bilibili-enhance.snippet'}.get(slug)
     if native_file:
         template=(Path(__file__).resolve().parent/native_file).read_text(encoding='utf-8')
         for line in template.splitlines():
@@ -81,7 +82,7 @@ def emit(out,name,filename,slug,kind,raw,assets,supplement=None):
         notes.append('完整远程 B 站增强；启用后删除或停用旧的本地 B 站重写块，避免重复。')
         notes.append('来源：https://raw.githubusercontent.com/kokoryh/Script/master/Surge/module/bilibili.sgmodule')
     if slug=='xiaoheihe':
-        notes.append('来源：https://github.com/wxs0625/loon-plugins/blob/main/blockAds_all.plugin；仅迁移既有小黑盒规则。')
+        notes.append('原作者：可莉；忠实保留上游 jq 逻辑（删除大写 PROTOCOL，无外部 JS）。')
     if added:notes.append('补齐 HTTPS 匹配主机：'+', '.join(added))
     body=[]
     for rx,stage,(action,arg),note in result['rewrites']:
@@ -128,7 +129,7 @@ def build(out,raw=RAW):
     rows=[];assets={};rewrites=[];filters=[];tasks=[];hosts=[]
     per_app,scope=supplements()
     selected=[(n,f,SLUGS[f],'snippets') for n,f,_ in C.ENABLED]+[
-        ('B站增强',None,'bilibili','snippets'),('小黑盒去广告',None,'xiaoheihe','snippets')]
+        ('B站增强',None,'bilibili','snippets')]
     emitted={slug for _,_,slug,_ in selected}
     if set(per_app)-emitted:raise ValueError('Shared rules have unassigned app targets: '+str(set(per_app)-emitted))
     seen_rewrites=set();seen_filters=set()

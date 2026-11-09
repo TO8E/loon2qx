@@ -58,6 +58,7 @@ ENABLED = [
     ("掌上英雄联盟去广告", "LOL_Bible_remove_ads.lpx", "纯 reject-dict"),
     ("朴朴超市去广告", "PuPuMall_remove_ads.lpx", "reject(404) + 响应脚本"),
     ("Google搜索重定向", "Google.lpx", "redirect -> 307/302"),
+    ("小黑盒去广告", "XiaoHeiHe_remove_ads.lpx", "reject-dict + jsonjq；可莉原版逻辑"),
 ]
 
 # 已启用但按规则跳过(原生 QX / 无 kelee 对应 / Loon 专属)
@@ -71,7 +72,6 @@ SKIPPED = {
     "一汽大众去广告": (None, "kelee 无对应插件（zirawell 原生）"),
     "AdGuard": (None, "kelee 无对应插件（yfamilys 原生）"),
     "哔哩哔哩增强": (None, "已有 kokoryh 本地转换版，非作者官方 QX 配置；本批不重复转换"),
-    "小黑盒去广告": (None, "你用的是 wxs0625 Loon 插件转换版，非 kelee 源"),
     "平安好车主去广告": (None, "配置中 enabled=false"),
     "拼多多去广告": (None, "配置中 enabled=false"),
     "Speedtest-备选": (None, "配置中 enabled=false"),
