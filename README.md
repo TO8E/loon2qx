@@ -1,10 +1,25 @@
 # loon2qx
 
-## Loon 原生精简公共插件
+## Loon 原生插件
+
+### 精简公共插件
 
 继续使用 Loon 时，请使用 [Loon 安装与范围说明](loon/README.md)：HTTPDNS 拦截器保留 7 条规则，广告平台拦截器保留 4 条规则，替换原版两个公共插件。仅按当前启用的可莉版插件筛选，优先减少误杀；未做手机实测，不保证解决抖音直播预览卡顿。
 
 [两行替换配置](loon/plugin.conf) · [HTTPDNS 精简版](https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/Block_HTTPDNS.lpx) · [广告平台精简版](https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/BlockAdvertisers.lpx)
+
+### 中国联通去广告
+
+由本仓库 `snippets/chinaunicom.snippet` 转为 [Loon 原生插件](https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/ChinaUnicom.lpx)，保留 1 条精确域名拦截、3 条请求拦截、6 条内联 jq 响应修改，无外部脚本。原作者为 mist-whisper，原插件另注明 ddgksf2013 参考。
+
+在 Loon 主配置的 `[Plugin]` 段添加：
+
+```ini
+https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/ChinaUnicom.lpx, enabled=true
+```
+
+沿用原插件标注的最低版本 `3.5.3(1014)`，需开启重写和 MitM 并信任证书。插件已声明 `m.client.10010.com`、`img.client.10010.com`；停用其他中国联通去广告插件后使用，后续刷新本订阅即可。
+保留 QX 版的协议范围、忽略大小写和 JSON 处理逻辑，钱包的两条规则均清空 `.data`，在 Loon 顺序执行时结果一致。本地检查覆盖规则转换和 JSON 样例，未做手机端导入或 App 实测。
 
 以下为历史 Quantumult X 资源说明；其统计和公共规则范围不适用于上述 Loon 资源。
 

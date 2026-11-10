@@ -1,0 +1,46 @@
+#!name=中国联通去广告
+#!desc=过滤中国联通开屏、搜索、浮窗及部分页面推广。Loon 原生重写，无外部脚本；需开启 MitM 并信任证书。
+#!author=mist-whisper[https://github.com/mist-whisper]
+#!tag=去广告
+#!loon_version=3.5.3(1014)
+#!openUrl=https://apps.apple.com/app/id416457422
+#!homepage=https://github.com/TO8E/loon2qx
+#!icon=https://raw.githubusercontent.com/sooyaaabo/IconLibrary/main/App/ChinaUnicom.png
+#!date=2026-11-10
+
+# Converted from: https://github.com/TO8E/loon2qx/blob/main/snippets/chinaunicom.snippet
+# Original source: https://loon.103516.xyz/Plugin/ChinaUnicom.lpx
+# 原作者：mist-whisper；原插件另注明 ddgksf2013 规则参考。
+# 保留 QX 版的匹配范围、忽略大小写及 JSON 处理效果。
+# 两条钱包规则均清空 data，Loon 按序执行时结果相同。
+
+[Rule]
+# 开屏广告
+DOMAIN, m1.ad.10010.com, REJECT
+
+[Rewrite]
+# 广告推送
+request if ${url} ~= /^https?:\/\/m\.client\.10010\.com\/mobileserviceimportant\/customer\/querySmartServicekhd.htm/i then reject(404)
+
+# 新人专享
+request if ${url} ~= /^https?:\/\/m\.client\.10010\.com\/clientIndex\/api\/v1\/index\/queryIndexExclusiveOffers/i then reject(404)
+
+# 首页瀑布流
+request if ${url} ~= /^https?:\/\/img\.client\.10010\.com\/homejingxuan12\/js\/(pubuliu|1homeView)/i then reject(404)
+
+# 搜索框推广
+response if ${url} ~= /^https:\/\/m\.client\.10010\.com\/search_service\/tyfbSearch\/searchDiscoverListExpress/i then response.json.jq(".data = []")
+response if ${url} ~= /^https:\/\/m\.client\.10010\.com\/search_service\/search\/searchScrollWord/i then response.json.jq(".[\"113000004\"] = []")
+
+# 浮窗推广
+response if ${url} ~= /^https:\/\/m\.client\.10010\.com\/clientIndex\/v1\/api\/navHome/i then response.json.jq(".datas.homeTopMenuItems |= map(select(.menuName != \"通通\" and .menuName != \"vowifi\" and .menuName != \"签到\" and .menuName != \"\"))")
+response if ${url} ~= /^https:\/\/m\.client\.10010\.com\/clientIndex\/homefusion\/fuInter/i then response.json.jq("del(.[\"HomeFusion.backGroundQuery\"], .[\"HomeFusion.fuchuangAdv_A8\"], .[\"HomeFusion.bottomLabel\"])")
+
+# 我的页面钱包模块
+response if ${url} ~= /^https:\/\/m\.client\.10010\.com\/clientMyPage\/v1\/api\/myWallet/i then response.json.jq(".data={}")
+
+# 借钱、积分、彩铃、横幅、本地图片推广
+response if ${url} ~= /^https?:\/\/m\.client\.10010\.com\/clientMyPage\/v\d\/api\/(myWallet|myPoints|myColorfulRingtone|newUserInfo|getDeviceInfo)/i then response.json.jq(".data={}")
+
+[MitM]
+hostname = m.client.10010.com, img.client.10010.com
