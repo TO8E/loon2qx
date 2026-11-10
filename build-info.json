@@ -281,7 +281,6 @@
       "rewrite": 23,
       "filter": 8,
       "hosts": [
-        "grpc.biliapi.net",
         "app.bilibili.com",
         "api.bilibili.com",
         "api.live.bilibili.com",
@@ -292,8 +291,14 @@
         "最常访问=hide；移除评论区置顶广告=true；optimizeRequest=false（慢加载反馈后移除重放）；日志=off。",
         "不迁移空降助手：不含 DmSegMobile 请求脚本或 bsbsb.top 分流。",
         "域名拦截已合并；仅纳入明确属于 B 站的公共补充，停用其它 B 站规则。",
+        "正式版默认不声明 grpc.biliapi.net 解密；保留已实测恢复最近观看速度的主机范围。",
+        "发往 grpc.biliapi.net 的评论、推荐、动态等响应不再净化；app/api 与直播规则保留。",
+        "插件已提供主机名，无须本地重复添加；旧本地或其它资源中的 grpc 声明需自行清理。",
         "无请求拦截/重放；本脚本不能补充 QX 的 HTTP/2 MitM 能力，不能保证 gRPC 净化有效。",
         "二进制脚本已适配 QX bodyBytes；本地测试不能代替手机 HTTP/2/gRPC 实测。"
+      ],
+      "mitm_omitted_hosts": [
+        "grpc.biliapi.net"
       ],
       "has_list": false,
       "snippet": "snippets/bilibili.snippet",
@@ -405,7 +410,6 @@
     "www.g.cn",
     "ditu.google.cn",
     "maps.google.cn",
-    "grpc.biliapi.net",
     "app.bilibili.com",
     "api.bilibili.com",
     "api.live.bilibili.com",

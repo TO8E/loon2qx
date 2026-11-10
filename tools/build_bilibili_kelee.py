@@ -12,6 +12,7 @@ SOURCE = 'https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx'
 SNAPSHOT = 'tools/upstream/bilibili-kelee/Bilibili_remove_ads.lpx'
 SETTINGS = dict(displayUpList='hide', purifyComment=True, optimizeRequest=False,
                 sponsorBlock=False, logLevel='off')
+MITM_OMITTED_HOSTS = ('grpc.biliapi.net',)
 SCRIPT_BASE = 'https://kelee.one/Resource/JavaScript/Bilibili/'
 JQ_BASE = 'https://kelee.one/Resource/JQLang/Bilibili/'
 RULE_AND = 'AND, ((DOMAIN-SUFFIX, chat.bilibili.com), (OR, ((DOMAIN-KEYWORD, stun), (DOMAIN-KEYWORD, tracker), (DOMAIN-KEYWORD, p2p)))), REJECT'
@@ -191,6 +192,9 @@ def emit(out, raw, assets, supplement=None):
     out = Path(out)
     source_bytes = (ROOT/SNAPSHOT).read_bytes()
     parsed = parse_rules(source_bytes.decode('utf-8'), raw)
+    # Keep the pinned upstream inventory intact, but publish the host scope
+    # verified during the recent-view loading diagnosis.
+    hosts = [host for host in parsed['hosts'] if host not in MITM_OMITTED_HOSTS]
     # Assets are rebuilt from pinned upstream sources, never fetched at runtime.
     script_assets = emit_scripts(out/'js/BilibiliKelee')
     assets.update({'js/BilibiliKelee/'+name: {key:value for key,value in meta.items() if key!='path'}
@@ -211,9 +215,12 @@ def emit(out, raw, assets, supplement=None):
              '最常访问=hide；移除评论区置顶广告=true；optimizeRequest=false（慢加载反馈后移除重放）；日志=off。',
              '不迁移空降助手：不含 DmSegMobile 请求脚本或 bsbsb.top 分流。',
              '域名拦截已合并；仅纳入明确属于 B 站的公共补充，停用其它 B 站规则。',
+             '正式版默认不声明 grpc.biliapi.net 解密；保留已实测恢复最近观看速度的主机范围。',
+             '发往 grpc.biliapi.net 的评论、推荐、动态等响应不再净化；app/api 与直播规则保留。',
+             '插件已提供主机名，无须本地重复添加；旧本地或其它资源中的 grpc 声明需自行清理。',
              '无请求拦截/重放；本脚本不能补充 QX 的 HTTP/2 MitM 能力，不能保证 gRPC 净化有效。',
              '二进制脚本已适配 QX bodyBytes；本地测试不能代替手机 HTTP/2/gRPC 实测。']
-    header = ['#!name=哔哩哔哩去广告', '#!desc=可莉版固定配置；动态最常访问隐藏、评论净化；请求重放已移除，无空降助手',
+    header = ['#!name=哔哩哔哩去广告', '#!desc=可莉版固定配置；默认不解密grpc，保留app/api与直播处理；无请求重放、无空降助手',
               '#!author=kokoryh[https://github.com/kokoryh]', '#!qx_version=1.5.2-854',
               '#!icon=https://raw.githubusercontent.com/luestr/IconResource/main/App_icon/120px/Bilibili.png',
               '# Source: '+SOURCE]
@@ -221,10 +228,11 @@ def emit(out, raw, assets, supplement=None):
     header += ['# Shared source: '+item['source'] for item in (supplement or {}).get('sources',[])]
     snippet = 'snippets/bilibili.snippet'
     write(out/snippet,'\n'.join(header+filters+parsed['rewrites']+
-          ['hostname = '+', '.join(parsed['hosts'])])+'\n')
+          ['hostname = '+', '.join(hosts)])+'\n')
     (out/'lists/bilibili.list').unlink(missing_ok=True)
     row = dict(name='哔哩哔哩去广告',fname='Bilibili_remove_ads.lpx',slug='bilibili',kind='snippets',
-               rewrite=len(parsed['rewrites']),filter=len(filters),hosts=parsed['hosts'],notes=notes,
+               rewrite=len(parsed['rewrites']),filter=len(filters),hosts=hosts,notes=notes,
+               mitm_omitted_hosts=list(MITM_OMITTED_HOSTS),
                has_list=False,snippet=snippet,list=None,source=SOURCE,snapshot=SNAPSHOT,
                upstream_sha256=hashlib.sha256(source_bytes).hexdigest(),
                embedded_filter=True,qx_min_version='1.5.2-854',settings=SETTINGS,

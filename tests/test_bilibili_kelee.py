@@ -16,6 +16,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 from urllib.parse import urlsplit
@@ -37,6 +38,8 @@ SOURCE_FILTERS += [f'host-wildcard, *{word}*.chat.bilibili.com, reject'
 FILTERS = SOURCE_FILTERS + ['host, httpdns.bilivideo.com, reject']
 HOSTS = ['grpc.biliapi.net', 'app.bilibili.com', 'api.bilibili.com',
          'api.live.bilibili.com', 'line3-h5-mobile-api.biligame.com']
+PUBLISHED_HOSTS = ['app.bilibili.com', 'api.bilibili.com',
+                   'api.live.bilibili.com', 'line3-h5-mobile-api.biligame.com']
 TAB = 'https://app.bilibili.com/x/resource/show/tab/v2?fixture=1'
 MINE = 'https://app.bilibili.com/x/v2/account/mine?fixture=1'
 MYINFO = 'https://app.bilibili.com/x/v2/account/myinfo?fixture=1'
@@ -536,8 +539,22 @@ class BilibiliKeleeTests(unittest.TestCase):
         self.assertEqual([line for line in lines if ' url ' in line], self.parsed['rewrites'])
         hostlines = [line for line in lines if line.startswith('hostname')]
         self.assertEqual(len(hostlines), 1)
-        self.assertCountEqual([x.strip() for x in hostlines[0].split('=', 1)[1].split(',')], HOSTS)
+        self.assertCountEqual([x.strip() for x in hostlines[0].split('=', 1)[1].split(',')], PUBLISHED_HOSTS)
         self.assertEqual(len(lines), 8 + 23 + 1)
+
+    def test_emitter_keeps_verified_mitm_scope_and_formal_rules(self):
+        # Host-scope publication must not depend on recompiling unchanged JS.
+        supplement = dict(filters=['host, httpdns.bilivideo.com, reject'],
+                          rewrites=[], sources=[])
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch('bilibili_kelee_scripts.emit', return_value={}):
+            row, published_rules, _, _ = K.emit(Path(tmp), RAW, {}, supplement)
+            lines = active((Path(tmp)/'snippets/bilibili.snippet').read_text())
+        self.assertEqual(row['hosts'], PUBLISHED_HOSTS)
+        self.assertEqual(row['mitm_omitted_hosts'], ['grpc.biliapi.net'])
+        self.assertEqual(published_rules, self.parsed['rewrites'])
+        self.assertEqual([line for line in lines if line.startswith('hostname')],
+                         ['hostname = '+', '.join(PUBLISHED_HOSTS)])
 
     def test_publication_manifest_fixed_settings_one_resource_and_provenance(self):
         manifest = json.loads((REPO / 'build-info.json').read_text(encoding='utf-8'))
@@ -547,6 +564,7 @@ class BilibiliKeleeTests(unittest.TestCase):
         expected = dict(slug='bilibili', snippet='snippets/bilibili.snippet',
                         rewrite=23, filter=8, list=None, has_list=False,
                         embedded_filter=True, settings=SETTINGS,
+                        hosts=PUBLISHED_HOSTS, mitm_omitted_hosts=['grpc.biliapi.net'],
                         source='https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx',
                         snapshot='tools/upstream/bilibili-kelee/Bilibili_remove_ads.lpx')
         for key, value in expected.items():
@@ -556,6 +574,8 @@ class BilibiliKeleeTests(unittest.TestCase):
         self.assertEqual(row.get('jq_sources'), self.parsed['jq'])
         self.assertFalse(any('BlockAdvertisers' in item['source'] for item in row.get('supplements', [])))
         self.assertFalse(any(path.startswith('js/Bilibili/') for path in manifest['assets']))
+        self.assertNotIn('grpc.biliapi.net', manifest['hosts'])
+        self.assertNotIn('grpc.biliapi.net', (REPO/'config/mitm.txt').read_text())
 
     def test_publication_has_one_parameter_free_config_entry_and_no_old_list(self):
         remote = active((REPO / 'config/rewrite_remote.conf').read_text())
