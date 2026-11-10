@@ -1,0 +1,33 @@
+#!name=一汽大众去广告
+#!desc=由 zirawell 的 QuanX 规则转换，保留 7 条响应改写。需开启 MitM 并信任证书。上游提示 App 存在代理检测，建议使用 TUN 模式；本版未做手机实测。
+#!author=zirawell[https://github.com/zirawell], TO8E[https://github.com/TO8E]
+#!tag=去广告
+#!loon_version=3.5.1(978)
+#!homepage=https://github.com/TO8E/loon2qx/blob/main/loon/FAWVW.md
+#!date=2026-11-10
+
+# Source: https://raw.githubusercontent.com/zirawell/R-Store/main/Rule/QuanX/Adblock/App/Y/%E4%B8%80%E6%B1%BD%E5%A4%A7%E4%BC%97/rewrite/fawvw.conf
+# Upstream SHA-256: 8168e74bc9ef3483ce4de24bb10093112bd5bce8c1cb31d9c443aacc2e4b2c6a
+# License: GPL-3.0; see ../upstream/R-Store-LICENSE.
+# Modified by TO8E on 2026-11-10: QuanX jsonjq-response-body -> Loon response.json.jq.
+# 保留原正则及 jq 表达式；首条 data 为对象，其余为数组。
+# 上游提示（未实测确认）：此应用会进行代理检测，无论模块是否生效，只要开启代理软件，均会导致软件故障，请使用 TUN 模式绕过代理检测。
+
+[Rewrite]
+# 集合列表
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/content\/collection\/getCollectionList\/v\d\?/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: {} }")
+# 搜索提示
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/search\/firstPage\/getPromptList\/v\d\?/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: [] }")
+# 权益卡片
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/benefits\/benefitsCard\/getInfo\/v\d\?/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: [] }")
+# 首页浮标
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/content\/booth\/getBoothList\/v\d\?.*showPositionCode=VWAPP_HOME_BUOY/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: [] }")
+# 开屏广告、汽车学院
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/content\/booth\/getBoothList\/v\d\?.*showPositionCode=VWAPP_(?>ICE|MEB)_(?>OPEN_SCREEN_ADS|CAR_ZHIHU_COLLEGE)/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: [] }")
+# 首页横幅及金刚区
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/content\/booth\/getBoothList\/v\d\?.*showPositionCode=VWAPP_(?>ICE|MEB)_HOME_(?>OWNER_BANNER|PROSPECTS_BANNER|CUSTOM_BANNER|KONGO|CUSTOM_KONGO)/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: [] }")
+# 自定义页面、推荐流、活动、主题、帖子及评价卡片
+response if ${url} ~= /^https?:\/\/oneapp-api\.faw-vw\.com\/content\/(?>customize\/getCustomizePageName|recommend\/getRecommendInfoFlows|activity\/getSquareActivityList|theme\/getThemeList|post\/getPostsByTags|evaluate\/getEvaluateCards)\/v\d\?/ then response.json.jq(". = { returnStatus: \"SUCCEED\", hasMore: false, data: [] }")
+
+[MitM]
+hostname = oneapp-api.faw-vw.com

@@ -21,6 +21,10 @@ https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/ChinaUnicom.lpx
 沿用原插件标注的最低版本 `3.5.3(1014)`，需开启重写和 MitM 并信任证书。插件已声明 `m.client.10010.com`、`img.client.10010.com`；停用其他中国联通去广告插件后使用，后续刷新本订阅即可。
 保留 QX 版的协议范围、忽略大小写和 JSON 处理逻辑，钱包的两条规则均清空 `.data`，在 Loon 顺序执行时结果一致。本地检查覆盖规则转换和 JSON 样例，未做手机端导入或 App 实测。
 
+### 一汽大众去广告
+
+[插件订阅](https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/FAWVW_remove_ads.lpx) · [安装与来源说明](loon/FAWVW.md)。由 zirawell 的 QuanX 规则转换，保留 7 条内联 jq 响应改写和原匹配范围；需要 Loon `3.5.1(978)+`、MitM 及受信任证书，未做手机实测。
+
 以下为历史 Quantumult X 资源说明；其统计和公共规则范围不适用于上述 Loon 资源。
 
 ## Quantumult X 资源
