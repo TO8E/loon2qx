@@ -11,6 +11,16 @@ scope_table='\n'.join('| '+', '.join(g['apps'])+' | '+g['purpose']+' | '+str(len
                       for source in scope.values() for g in source['groups'])
 text=f'''# loon2qx
 
+## Loon 原生精简公共插件
+
+继续使用 Loon 时，请使用 [Loon 安装与范围说明](loon/README.md)：HTTPDNS 拦截器保留 7 条规则，广告平台拦截器保留 4 条规则，替换原版两个公共插件。仅按当前启用的可莉版插件筛选，优先减少误杀；未做手机实测，不保证解决抖音直播预览卡顿。
+
+[两行替换配置](loon/plugin.conf) · [HTTPDNS 精简版](https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/Block_HTTPDNS.lpx) · [广告平台精简版](https://raw.githubusercontent.com/TO8E/loon2qx/main/loon/plugins/BlockAdvertisers.lpx)
+
+以下为历史 Quantumult X 资源说明；其统计和公共规则范围不适用于上述 Loon 资源。
+
+## Quantumult X 资源
+
 将 [可莉插件中心](https://hub.kelee.one/) 中本次迁移使用的 {sum(bool(r['fname']) and (not r.get('source') or r['source'].startswith('https://kelee.one/')) for r in rows)} 个应用/工具插件转换为 Quantumult X 配置。
 另提供 loon.103516.xyz 中国联通插件转换版。
 HTTPDNS、广告域名配套已并入各 App；小黑盒和 B 站已切换为可莉插件转换版。

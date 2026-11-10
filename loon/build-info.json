@@ -1,0 +1,122 @@
+{
+  "profile_date": "2026-11-10",
+  "evidence_limit": "按所选插件及服务关联制定的保守白名单；未通过手机流量证明每条规则必需，不是按 App 进程隔离，接受部分广告覆盖减少。",
+  "plugins": [
+    {
+      "file": "plugins/Block_HTTPDNS.lpx",
+      "source": "https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx",
+      "snapshot": "upstream/Block_HTTPDNS.lpx",
+      "source_sha256": "1565be1f81faba0918f717a7ffe06340ac85db7e850a8059d636dec03c696a3a",
+      "output_sha256": "5f519c76a93e8cf89f870b89b3513e7366d919b0055da2cfd50b9c54262faa10",
+      "upstream_rule_count": 162,
+      "selected_rule_count": 7,
+      "removed_rule_count": 155,
+      "removed_rewrite_count": 6,
+      "removed_mitm": true,
+      "rules": [
+        {
+          "rule": "DOMAIN, httpdns.bilivideo.com, REJECT",
+          "apps": [
+            "哔哩哔哩"
+          ],
+          "reason": "B站专用HTTPDNS域名；保留解析配套，不扩大到通用HTTPDNS拦截。",
+          "line": 93
+        },
+        {
+          "rule": "DOMAIN, httpdns.danuoyi.tbcache.com, REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留淘宝缓存体系关联的解析域名；服务可能被其他App调用，不是进程隔离。",
+          "line": 108
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/amdc\\.m\\.taobao\\.com\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。",
+          "line": 110
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/47\\.246\\.103\\.9\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。",
+          "line": 111
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/47\\.246\\.103\\.10\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。",
+          "line": 112
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.10\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。",
+          "line": 113
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.219\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。",
+          "line": 114
+        }
+      ]
+    },
+    {
+      "file": "plugins/BlockAdvertisers.lpx",
+      "source": "https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx",
+      "snapshot": "upstream/BlockAdvertisers.lpx",
+      "source_sha256": "2947d7df2ceb8addb9b06d7651465f8166d61ebd02ce1d889d562c62739266c4",
+      "output_sha256": "8563799598ab41cf70700831f3ef1fb99109e9cfc7b6b3aa2d84572fb0b024b4",
+      "upstream_rule_count": 346,
+      "selected_rule_count": 4,
+      "removed_rule_count": 342,
+      "removed_rewrite_count": 4,
+      "removed_mitm": true,
+      "rules": [
+        {
+          "rule": "DOMAIN, tmeadcomm.y.qq.com, REJECT",
+          "apps": [
+            "QQ音乐"
+          ],
+          "reason": "QQ音乐y.qq.com下的广告补充域名；原QQ音乐插件已覆盖tmead/tmeadbak，不重复添加。",
+          "line": 138
+        },
+        {
+          "rule": "DOMAIN, stat.y.qq.com, REJECT",
+          "apps": [
+            "QQ音乐"
+          ],
+          "reason": "QQ音乐y.qq.com下的统计补充域名；不扩展到腾讯通用统计SDK。",
+          "line": 143
+        },
+        {
+          "rule": "DOMAIN, stat6.y.qq.com, REJECT",
+          "apps": [
+            "QQ音乐"
+          ],
+          "reason": "QQ音乐y.qq.com下的统计补充域名；不扩展到腾讯通用统计SDK。",
+          "line": 144
+        },
+        {
+          "rule": "AND, ((DOMAIN-KEYWORD, adash), (DOMAIN-SUFFIX, ut.taobao.com)), REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留同时包含adash且属于ut.taobao.com的组合匹配；不使用全局adash关键词，也不封锁整个taobao.com。",
+          "line": 231
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "date": "2026-11-10",
+  "raw_base": "https://raw.githubusercontent.com/TO8E/loon2qx/main/loon",
+  "scope": [
+    {
+      "name": "QQ音乐去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/QQMusic_remove_ads.lpx",
+      "sha256": "cdf745f6baa1872216ca1a1b1146d97c5f1ee38fd7ce493729dc1fe3c412f80e"
+    },
+    {
+      "name": "哔哩哔哩去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx",
+      "sha256": "8db02264fa15b0271ccad40eaa5c14ea3f40864aa5af501c7a64941620e6b0e5"
+    },
+    {
+      "name": "酷安去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/CoolApk_remove_ads.lpx",
+      "sha256": "d77533ccb0adfe3039705d560ff9f784310093b522df8d6117cd05d4ad49f36a"
+    },
+    {
+      "name": "淘宝去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/Taobao_remove_ads.lpx",
+      "sha256": "23f29f4b051c237b802a5b22a4fd9f7e7eb713a559e5f81ca94d8d6b6f4554cc"
+    },
+    {
+      "name": "Google搜索重定向",
+      "source": "https://kelee.one/Tool/Loon/Lpx/Google.lpx",
+      "sha256": "e61f5138fa70598b139e60efffd74230f36710b36190e257a1d2b38bb3ec430b"
+    },
+    {
+      "name": "YouTube去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/YouTube_remove_ads.lpx",
+      "sha256": "0e5da80d8d79d58d854f33383053d76355e30cb0507cf89bc53330249ae1da7f"
+    },
+    {
+      "name": "小红书去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/RedPaper_remove_ads.lpx",
+      "sha256": "b782ea4f811702a80f853eae8bd3a3f7a33c8a3af833f5c54fba3d75a524f646"
+    },
+    {
+      "name": "12306去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/12306_remove_ads.lpx",
+      "sha256": "ffefab9b5c8108fa5080bd1fc66a9ccde6ed13ff22dc47d828988055e13bae9d"
+    },
+    {
+      "name": "小黑盒去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/XiaoHeiHe_remove_ads.lpx",
+      "sha256": "8ce70df1c1d23c93d458c49f664aec096edd0e2fdd362ebba6e76beabfc21885"
+    },
+    {
+      "name": "下厨房去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/XiaChuFang_remove_ads.lpx",
+      "sha256": "90daf81c40e3f4495ac29c2581684a5a098dddbfd9837f35752185d3dfce6924"
+    },
+    {
+      "name": "朴朴超市去广告",
+      "source": "https://kelee.one/Tool/Loon/Lpx/PuPuMall_remove_ads.lpx",
+      "sha256": "1c20c9124c45b832dd942a1a92ac0533d01bfe96228da07943c849864c548bbd"
+    }
+  ],
+  "evidence_limit": "按所选插件及服务关联制定的保守白名单；未通过手机流量证明每条规则必需，不是按 App 进程隔离，接受部分广告覆盖减少。",
+  "plugins": [
+    {
+      "file": "Block_HTTPDNS.lpx",
+      "name": "HTTPDNS拦截器（精简版）",
+      "description": "仅保留B站HTTPDNS、淘宝缓存解析域名与5条调度URL，共7条。按服务关联筛选，不是按App进程隔离；未做手机实测。替换原版使用，置于其他插件之前。",
+      "source": "https://kelee.one/Tool/Loon/Lpx/Block_HTTPDNS.lpx",
+      "sha256": "1565be1f81faba0918f717a7ffe06340ac85db7e850a8059d636dec03c696a3a",
+      "rules": [
+        {
+          "rule": "DOMAIN, httpdns.bilivideo.com, REJECT",
+          "apps": [
+            "哔哩哔哩"
+          ],
+          "reason": "B站专用HTTPDNS域名；保留解析配套，不扩大到通用HTTPDNS拦截。"
+        },
+        {
+          "rule": "DOMAIN, httpdns.danuoyi.tbcache.com, REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留淘宝缓存体系关联的解析域名；服务可能被其他App调用，不是进程隔离。"
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/amdc\\.m\\.taobao\\.com\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。"
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/47\\.246\\.103\\.9\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。"
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/47\\.246\\.103\\.10\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。"
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.10\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。"
+        },
+        {
+          "rule": "URL-REGEX, \"^http:\\/\\/59\\.82\\.113\\.219\\/amdc\\/mobileDispatch\", REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留上游淘宝mobileDispatch的指定主机和路径；IP形式仅限该URL，不封锁整个IP。"
+        }
+      ]
+    },
+    {
+      "file": "BlockAdvertisers.lpx",
+      "name": "广告平台拦截器（精简版）",
+      "description": "仅保留QQ音乐广告/统计域名和淘宝有界adash规则，共4条。按服务关联筛选，不是按App进程隔离；未做手机实测。替换原版使用，置于其他插件之前。",
+      "source": "https://kelee.one/Tool/Loon/Lpx/BlockAdvertisers.lpx",
+      "sha256": "2947d7df2ceb8addb9b06d7651465f8166d61ebd02ce1d889d562c62739266c4",
+      "rules": [
+        {
+          "rule": "DOMAIN, tmeadcomm.y.qq.com, REJECT",
+          "apps": [
+            "QQ音乐"
+          ],
+          "reason": "QQ音乐y.qq.com下的广告补充域名；原QQ音乐插件已覆盖tmead/tmeadbak，不重复添加。"
+        },
+        {
+          "rule": "DOMAIN, stat.y.qq.com, REJECT",
+          "apps": [
+            "QQ音乐"
+          ],
+          "reason": "QQ音乐y.qq.com下的统计补充域名；不扩展到腾讯通用统计SDK。"
+        },
+        {
+          "rule": "DOMAIN, stat6.y.qq.com, REJECT",
+          "apps": [
+            "QQ音乐"
+          ],
+          "reason": "QQ音乐y.qq.com下的统计补充域名；不扩展到腾讯通用统计SDK。"
+        },
+        {
+          "rule": "AND, ((DOMAIN-KEYWORD, adash), (DOMAIN-SUFFIX, ut.taobao.com)), REJECT",
+          "apps": [
+            "淘宝"
+          ],
+          "reason": "保留同时包含adash且属于ut.taobao.com的组合匹配；不使用全局adash关键词，也不封锁整个taobao.com。"
+        }
+      ]
+    }
+  ]
+}
