@@ -172,7 +172,9 @@ def mock_script(mocks):
   const url = $request.url;
   const route = routes.find(item => new RegExp(item.pattern, "i").test(url));
   if (!route) { $done({}); return; }
-  const response = {status: "HTTP/1.1 200 OK", headers: {"Content-Type": "text/plain; charset=utf-8"}};
+  // Binary mocks are gRPC frames, not UTF-8 text. QX manages length/encoding.
+  const contentType = route.grpc_status ? "application/grpc" : "text/plain; charset=utf-8";
+  const response = {status: "HTTP/1.1 200 OK", headers: {"Content-Type": contentType}};
   if (route.grpc_status) response.headers["grpc-status"] = "0";
   if (route.binary) {
     // The source base64 contains the ENTIRE five-byte-prefixed gRPC frame.

@@ -542,7 +542,7 @@
     "js/BilibiliKelee/mock.js": {
       "source": "https://kelee.one/Tool/Loon/Lpx/Bilibili_remove_ads.lpx",
       "upstream_sha256": "8db02264fa15b0271ccad40eaa5c14ea3f40864aa5af501c7a64941620e6b0e5",
-      "sha256": "1bd48e3d9cca5451a1d11e09a0e68e67b21994c121f6ca16a933e0a8b87b9a73",
+      "sha256": "5d62165dbb7579dce1a702fe5b182004e738a62438eacbe3296f3a5a36bffc45",
       "adapted": true
     }
   },

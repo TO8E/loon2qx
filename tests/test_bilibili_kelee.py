@@ -370,7 +370,7 @@ class BilibiliKeleeTests(unittest.TestCase):
             for value in ({'data': {'keep': 1}}, {'data': {'items': None}}, {'data': {'items': []}}):
                 self.assertEqual(self.apply(url, value), value)
 
-    def test_six_mock_routes_preserve_source_bytes_status_and_content_type(self):
+    def test_six_mock_routes_preserve_bytes_and_use_protocol_content_type(self):
         sources = source_mocks()
         self.assertEqual(len(sources), 6)
         results = self.mock(MOCK_URLS)
@@ -384,14 +384,17 @@ class BilibiliKeleeTests(unittest.TestCase):
                 response = result['response']
                 self.assertEqual(response['status'], 'HTTP/1.1 200 OK')
                 headers = {key.lower(): value for key, value in response['headers'].items()}
-                self.assertEqual(headers['content-type'], 'text/plain; charset=utf-8')
                 binary = len(args) == 4 and args[3] is True
                 if binary:
+                    # gRPC responses must identify the wire protocol, even
+                    # when the upstream LPX calls its base64 mock "text".
+                    self.assertEqual(headers['content-type'], 'application/grpc')
                     self.assertNotIn('body', response)
                     self.assertEqual(headers.get('grpc-status'), '0')
                     self.assertEqual(result['base64'], args[1])
                     self.assertEqual(bytes(result['bytes']), base64.b64decode(args[1], validate=True))
                 else:
+                    self.assertEqual(headers['content-type'], 'text/plain; charset=utf-8')
                     self.assertNotIn('bodyBytes', response)
                     self.assertNotIn('grpc-status', headers)
                     self.assertEqual(response['body'].encode('utf-8'), args[1].encode('utf-8'))
